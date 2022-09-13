@@ -1,105 +1,91 @@
 #include "spkmeans.h"
 
-
-int kMeans(int N, int K, double **Datapoints, double **Centroids, int dimension){
-
-    int i, j, counter, cluster;
-    double **used_cent;
+int kMeans(int len, int in1, double **points, double **cent, int dim){
+    int i, j, count, clust;
+    double **cent_that_used;
     int max_iter = 300;
-    counter = 0;
-
-    used_cent = malloc((sizeof(double *)) * K);
-    if (used_cent == NULL)
+    count = 0;
+    cent_that_used = calloc(in1 , sizeof(double *));
+    if (cent_that_used == NULL)
         return -1;
-    
-    for(i=0;i<K;i++){
-        used_cent[i] = malloc((sizeof(double)) * (dimension));
-        if (used_cent[i] == NULL)
+    i = 0;
+    while(i < in1){
+        cent_that_used[i] = calloc(dim , sizeof(double));
+        if (cent_that_used[i] == NULL)
             return -1;
-        for(j=0; j<dimension; j++)
-            used_cent[i][j]=Centroids[i][j];
-        
+        j = 0;
+        while(j < dim){
+           cent_that_used[i][j]=cent[i][j];
+           j++;
+        }
+        i++;
     }
 
     /* Calculate k-means:
     Stop iteration when number of iteration is more then man_iter
     or when all of the centroids have changed less then epsilon*/
     
-    while (max_iter > counter){
-        for (i = 0; i < N; i++){
-            cluster = find_cluster(Centroids, Datapoints[i], dimension, K);
-
-            /* Update for each datapoint- what number of cluster it belongs
-            and for each centroids update the number of datapoints that belong to it*/
-            Datapoints[i][dimension] = cluster;
-            Centroids[cluster - 1][dimension] += 1;
+    while (max_iter > count){
+        i = 0;
+        while(i < len){
+            clust = find_cluster(cent, points[i], dim, in1);
+            points[i][dim] = clust;
+            cent[clust - 1][dim]++;
+            i++;
         }
-
-        /* Set all centroids to zero so that updated centroids can be calculated next*/
-        for (i = 0; i < K; i++){
-            for (j = 0; j < dimension; j++)
-                Centroids[i][j] = 0;
+        i = 0;
+        while(i < in1){
+            for (j = 0; j < dim; j++)
+                cent[i][j] = 0;
+            i++;
         }
-
-        /* Update centroids according to the calculations*/
-        for (i = 0; i < N; i++){
-            cluster = Datapoints[i][dimension];
-            for (j = 0; j < dimension; j++)
-                Centroids[cluster - 1][j] += Datapoints[i][j];  
+        i = 0;
+        while(i < len){
+            clust = points[i][dim];
+            for (j = 0; j < dim; j++)
+                cent[clust - 1][j] = points[i][j] + cent[clust - 1][j];  
+            i++;
         }
-        for (i = 0; i < K; i++){
-            for (j = 0; j < dimension; j++){
-                /*Centroids[i][j]= sum of datapoints that belong to cluster i+1
-                Centroids[i][dimension]= number of datapoints that belong to cluster i*/
-                Centroids[i][j] = Centroids[i][j] / Centroids[i][dimension];
-            }
-            Centroids[i][dimension] = 0;
+        i = 0;
+        while(i < in1){
+            for (j = 0; j < dim; j++)
+                cent[i][j] = cent[i][j] / cent[i][dim];
+            cent[i][dim] = 0;
+            i++;
         }
-
-        /* if all centroids changed less then epsilon -done, else- countinue*/
-        if (check_euclidean_norm(Centroids, used_cent, dimension, K))
+        if (check_euclidean_norm(cent, cent_that_used, dim, in1))
             break;
-
-        /* make oldcentroids be the new ones for next iteration*/
-        update_old_centroids(Centroids, used_cent, dimension, K);
-
-        counter++;
+        update_old_centroids(cent, cent_that_used, dim, in1);
+        count++;
     }
 
-    free_memory(used_cent, K);
-    return SUCCESS;
+    free_memory(cent_that_used, in1);
+    return 0;
 }
 
-/* Receives the new and old centroids
- * Returns 1 if all of the centroids didn't change more then epsilon,else-0*/
-int check_euclidean_norm(double **newCentroids, double **used_cent, int dimension, int K){
+int check_euclidean_norm(double **newcent, double **cent_that_used, int dim, int in1){
     int i;
     double e_norm;
-
-    /*Calculate euclidean norm for each centroid*/
-    for (i = 0; i < K; i++){
-        e_norm = calc_euclidean_norm(newCentroids[i],used_cent[i],dimension);
-        /* One centroid changed more then epsilon*/
+    for (i = 0; i < in1; i++){
+        e_norm = calc_euclidean_norm(newcent[i],cent_that_used[i],dim);
         if (e_norm >= 0)
             return 0;
     }
-    /* Every centroids changed less then epsilon */
     return 1;
 }
 
-/* Receives the centroids and one datapoint
- * Returns datapoint's cluster*/
-int find_cluster(double **Centroids, double *Datapoint, int dimension, int K){
+
+int find_cluster(double **cent, double *Datapoint, int dim, int K){
     int i, j, cluster;
     double sum, min_clust;
 
-    cluster=0; /*Default*/
+    cluster=0; 
 
     min_clust = DBL_MAX;
     for (i = 0; i < K; i++){
         sum = 0;
-        for (j = 0; j < dimension; j++)
-            sum += pow((Datapoint[j] - Centroids[i][j]), 2);
+        for (j = 0; j < dim; j++)
+            sum += pow((Datapoint[j] - cent[i][j]), 2);
         if (min_clust > sum){
             min_clust = sum;
             cluster = i + 1;
@@ -109,12 +95,11 @@ int find_cluster(double **Centroids, double *Datapoint, int dimension, int K){
     return cluster;
 }
 
-/* Receives the updated centroids and old ones- update the old centroids*/
-void update_old_centroids(double **newCentroids, double **used_cent, int dimension, int K){
+void update_old_centroids(double **newcent, double **cent_that_used, int dim, int K){
     int i, j;
     for (i = 0; i < K; i++){
-        for (j = 0; j < dimension; j++)
-            used_cent[i][j] = newCentroids[i][j];
+        for (j = 0; j < dim; j++)
+            cent_that_used[i][j] = newcent[i][j];
         
     }
 }
