@@ -122,21 +122,21 @@ void get_mat_transe(double **mat, int N){
         }
         i++;
     }
+
 }
 
-void A_to_A_tag(int N, double **A, int *i, int *j){
-    int in1, in2;
-    double max = -DBL_MAX;
-    in1 = 0;
-    while(in1 < N){
-         for (in2 = in1 + 1; in2 < N; ++in2){
-            if (fabs(A[in1][in2]) > max){
-                max = fabs(A[in1][in2]);
-                *i = in1;
-                *j = in2;
+void A_to_A_tag(int N, double **A, int *index_of_i, int *index_of_j){
+    int q, l;
+    double maximum = -DBL_MAX;
+    for (q = 0; q < N; ++q){
+        for (l = q + 1; l < N; ++l){
+            
+            if (fabs(A[q][l]) > maximum){
+                maximum = fabs(A[q][l]);
+                *index_of_i = q;
+                *index_of_j = l;
             }
         }
-        in1 = in1 +1;
     }
 }
 
