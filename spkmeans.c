@@ -50,58 +50,58 @@ double **matrix_allocation(int rows, int cols){
     return mat;
 }
 
-/* Receives file's pointer and an int- situattion (2 options: N (FIND_N) or D (FIND_D))
- * Returns N or D according to situattion */
+/*the program recive file and purpose (purpose is calculate dim or num of vectors) and calculate the purpose*/
 int get_n_d_parameters(FILE *ifp, int situattion){
     char ch;
     int count = 0;
     ch = 0;
     while ((ch = fgetc(ifp)) != EOF){
         if(situattion != 1){
-            if (ch == '\n'){
+            if ('\n' == ch){
                 rewind(ifp);
-                count++;
-                return count;
+                return (1 + count);
             }
             else{
-                if (ch == ',')
-                    count++;
+                if (',' == ch)
+                    count = count + 1;
                 }
         }
         else{
-            if (ch == '\n')
-                count++;
+            if ('\n' == ch)
+                count = count + 1;
         }
     }
     rewind(ifp);
     return count;
 }
 
-/* Receives matrices dest_mat,src_mat and number of rows and columns
- * Updates dest_mat to be a copy of src_mat */
-void matrix_copy(int rows, int cols, double **dest_mat, double **src_mat){
+/* Receives matrices copy_mat,original_mat and number of rows and columns
+ * Updates copy_mat to be a copy of original_mat */
+void matrix_copy(int rows, int cols, double **copy_mat, double **original_mat){
     int i, j;
     for (i = 0; i < rows; i++){
-        for (j = 0; j < cols; j++)
-            dest_mat[i][j] = src_mat[i][j];
-        
+        j = 0;
+        while(j < cols){
+            copy_mat[i][j] = original_mat[i][j];
+            j++;
+        }        
     }
 }
 
 /* Receives file's pointer, pointer to an empty matrix of datapoints and num of rows, num of cols
- * Updated data_input according to the file's data */
-void set_input(FILE *ifp, double **data_input, int rows, int cols){
+ * Updated data according to the file's data */
+void set_input(FILE *ifp, double **data, int rows, int cols){
     int i, j;
-    double curr_value;
+    double value;
     i = 0, j = 0;
-
     for (i = 0; i < rows; i++){
-        for (j = 0; j < cols; j++){
-            if (fscanf(ifp, "%lf", &curr_value) == 1)
-                data_input[i][j] = curr_value;
-            else
-                j--;
+        j = 0;
+        while(j < cols){
+            if(1 != fscanf(ifp, "%lf", &value))
+                  j--;
+            else data[i][j] = value;;
             fgetc(ifp);
+            j++;
         }
     }
     rewind(ifp);
@@ -109,42 +109,44 @@ void set_input(FILE *ifp, double **data_input, int rows, int cols){
 
 /* Receives a matrix: mat_to_free and rows- matrix's number of rows
  * Frees mat_to_free*/
-void free_memory(double **mat_to_free, int rows){
-    int i;
-    for (i = 0; i < rows; i++)
-        free(mat_to_free[i]);
-    free(mat_to_free);
+void free_memory(double **mat, int rows){
+    int i = 0;
+    while(i < rows){
+        free(mat[i]);
+    }
+    free(mat);
 }
 
 /* Receives an int: error_type (2 options: invalid (INVALID_TYPE) or error (ERROR_TYPE)) and is_error- boolean number
  * If is_error is 1 (true- an error occurred), print the correspond message (according to error_type) and exit
  * Else- continue (do nothing) */
-void msg_and_exit(int error_type, int is_error){
-    if (is_error == 1){
-        if (error_type == 0)
-           invalid_input();
-        else
+void msg_and_exit(int type_of_err, int err){
+    if (err == 1){
+        if (type_of_err != 0)
             err_print();
-        
+        else invalid_input();
     }
 }
 
 /* Receives a matrix, number of rows and columns, and enum Goal
  * Prints the matrix (if the goal is jacobi then updates rows +1) */
-void print_result(double **mat, int rows, int cols, enum Goal goal)
+void print_result(double **mat, int rows, int cols, enum Goal target)
 {
     int i, j;
-    if (goal == JACOBI)
-        rows = rows+1;
-    for (i = 0; i < rows; i++){
-        for (j = 0; j < cols; j++){
-            if (j == cols - 1)
+    if (target == JACOBI)
+        rows++;
+    i = 0;
+    while(i < rows){
+        j = 0;
+        while(j < cols){
+            if (cols - 1 == j)
                 printf("%.4f", mat[i][j]);
-            else
-                printf("%.4f,", mat[i][j]);
+            else printf("%.4f,", mat[i][j]);
+            j++;
         }
-        if (i != rows - 1)
+        if ((rows - 1) != i)
             printf("\n");
+        i++;
     }
 }
 
@@ -152,16 +154,16 @@ void print_result(double **mat, int rows, int cols, enum Goal goal)
  * D- number of columns (or point's dimension) and a pointer to K
  * Returns corresponed matrix according to the given goal
  * If an error occured returns NULL*/
-double **run_goal(enum Goal goal, double **data_input, int N, int D, int *K){
+double **run_goal(enum Goal goal, double **data, int N, int D, int *K){
     double **data_output, **wam_matrix, **ddg_matrix, **lnorm_matrix;
 
     if (goal == 4){
-        data_output = calc_jacob(N, data_input);
+        data_output = calc_jacob(N, data);
         return data_output;
     }
 
     /* Run WAM*/
-    data_output = adjacency_matrix(data_input, D, N);
+    data_output = adjacency_matrix(data, D, N);
     if (goal == 1 || data_output == NULL)
         return data_output;
 
@@ -196,7 +198,7 @@ double **run_goal(enum Goal goal, double **data_input, int N, int D, int *K){
 int main(int argc, char *argv[]){
     char *file_name;
     int N, D, K;
-    double **data_input, **data_output;
+    double **data, **data_output;
     FILE *ifp;
     enum Goal goal = 0;
     K = 0;
@@ -222,22 +224,22 @@ int main(int argc, char *argv[]){
     D = get_n_d_parameters(ifp, 2);
 
     /* Creates matrix for input*/
-    data_input = matrix_allocation(N, D);
-    msg_and_exit(1, data_input == NULL);
+    data = matrix_allocation(N, D);
+    msg_and_exit(1, data == NULL);
 
-    /* Sets the N points/symmetric matrix in data_input*/
-    set_input(ifp, data_input, N, D);
+    /* Sets the N points/symmetric matrix in data*/
+    set_input(ifp, data, N, D);
 
     /* Sets the goal's result in data_output*/
-    data_output = run_goal(goal, data_input, N, D, &K);
+    data_output = run_goal(goal, data, N, D, &K);
     if (data_output == NULL){ /* An error has occurred*/
-        free_memory(data_input, N);
+        free_memory(data, N);
         msg_and_exit(1, 1);
     }
 
     print_result(data_output, N, N, goal);
     printf("\n");
-    free_memory(data_input, N);
+    free_memory(data, N);
     if (goal == jacobi_g)
         free_memory(data_output, N + 1);
     else
