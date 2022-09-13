@@ -793,7 +793,7 @@ int main(int argc, char *argv[])
     }
 
     print_result(data_output, N, N, goal);
-
+    printf("\n");
     free_memory(data_input, N);
     if (goal == jacobi_g)
         free_memory(data_output, N + 1);
