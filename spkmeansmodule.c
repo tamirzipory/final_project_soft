@@ -74,19 +74,18 @@ static PyObject *fit(PyObject *self, PyObject *args)
         }
 
         /* Only in spk-ex2: Zero in last cell [dimension]*/
-        if(goal == SPK_EX2)
+        if(goal == 6)
         {
             Datapoints[i][j] = 0;
             if (i < K)
-            {
+            
                 Centroids[i][j] = 0;
-            }
+            
         }
     }
 
     /* If goal is spk_ex2 (spk second run) run kMeans from ex2 else- goal is wam, ddg, lnorm or spk (first run)- use run_goal function*/
-    if (goal == SPK_EX2)
-    {
+    if (goal == 6){
         return_value = kMeans(N, K, Datapoints, Centroids, D);
         if (return_value == FAIL)
         {
@@ -102,8 +101,7 @@ static PyObject *fit(PyObject *self, PyObject *args)
     else
     {
         goal_result = run_goal(goal, Datapoints, N, D, &K);
-        if (goal_result == NULL)
-        {
+        if (goal_result == NULL){
             free_memory(Datapoints, N);
             PyErr_SetString(PyExc_RuntimeError, ERROR);
             return NULL;
@@ -116,13 +114,10 @@ static PyObject *fit(PyObject *self, PyObject *args)
 
     /* Converts result_matrix to an array list (python)*/
     returned_result = PyList_New(rows);
-    for (i = 0; i < rows; ++i)
-    {
+    for (i = 0; i < rows; ++i){
         current_vector = PyList_New(cols);
         for (j = 0; j < cols; j++)
-        {
             PyList_SetItem(current_vector, j, Py_BuildValue("d", goal_result[i][j]));
-        }
         PyList_SetItem(returned_result, i, Py_BuildValue("O", current_vector));
     }
 
@@ -149,13 +144,11 @@ static struct PyModuleDef moudledef = {
         Methods
 };
 
-PyMODINIT_FUNC PyInit_my_spkmeans(void)
-{
+PyMODINIT_FUNC PyInit_my_spkmeans(void){
     PyObject *m;
     m = PyModule_Create(&moudledef);
     if (!m)
-    {
         return NULL;
-    }
+    
     return m;
 }
