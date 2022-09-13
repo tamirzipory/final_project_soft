@@ -175,7 +175,7 @@ void get_params(double **A, int i, int j, double *p1, double *p2){
     *p1 = divide(t);
     *p2 = t / sqrt((t * t) + 1);
 }
-
+/*
 void calc_curr_P(int max_iter, double **the_p_mat, int i, int j, double d1, double d2){
     int in1, in2;
     in1 = 0;
@@ -197,6 +197,21 @@ void calc_curr_P(int max_iter, double **the_p_mat, int i, int j, double d1, doub
             in2++;
         }
         in1++;
+    }
+}
+*/
+
+void calc_curr_P(int max_iter, double **the_p_mat, int i, int j, double c, double s){
+    int k, l;
+    for (k = 0; k < max_iter; ++k){
+        for (l = 0; l < max_iter; ++l){
+            if (k == l)
+                the_p_mat[k][l] = (k == i || l == j) ? c : 1; /* 1 on the diagonal*/
+            else if (k == j && l == i)
+                the_p_mat[k][l] = -s;
+            else
+                the_p_mat[k][l] = (k == i && l == j) ? s : 0;
+        }
     }
 }
 
