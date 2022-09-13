@@ -16,7 +16,7 @@ void err_print(){
 }
 
 /*alloc mat according the dim*/
-double **mat_alloc_by_row_col(int rows, int cols){
+double **matrix_allocation(int rows, int cols){
     int i;
     double **mat = calloc(rows, (sizeof(double *)));
     if (NULL == mat)
@@ -77,7 +77,7 @@ void set_input(FILE *ifp, double **data, int rows, int cols){
         while(j < cols){
             if(1 != fscanf(ifp, "%lf", &value))
                   j--;
-            else data[i][j] = value;;
+            else data[i][j] = value;
             fgetc(ifp);
             j++;
         }
@@ -95,7 +95,7 @@ void free_memory(double **mat, int rows){
     free(mat);
 }
 
-/*Replace the asserts */
+/*Replace the */
 void msg_and_exit(int type_of_err, int err){
     if (err == 1){
         if (type_of_err != 0)
@@ -138,7 +138,7 @@ double **run_goal(enum Goal target, double **data, int n1, int n2, int *n3){
     if(target == 1)
         return ret;
     mat_wam = ret;
-    ret = diagMat(mat_wam, n1);
+    ret = diag_mat(mat_wam, n1);
     if (target == 2 ||ret == NULL){
         free_memory(mat_wam, n1);
         return ret;
@@ -179,7 +179,7 @@ int main(int argc, char *argv[]){
     msg_and_exit(1, ifp == NULL);
     n1 = get_n_d_parameters(ifp, 1);
     n2 = get_n_d_parameters(ifp, 2);
-    data = mat_alloc_by_row_col(n1, n2);
+    data = matrix_allocation(n1, n2);
     msg_and_exit(1, data == NULL);
     set_input(ifp, data, n1, n2);
     ret = run_goal(target, data, n1, n2, &n3);
