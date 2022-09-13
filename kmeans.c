@@ -21,9 +21,7 @@ int kMeans(int len, int in1, double **points, double **cent, int dim){
         i++;
     }
 
-    /* Calculate k-means:
-    Stop iteration when number of iteration is more then man_iter
-    or when all of the centroids have changed less then epsilon*/
+    /* calculates kmeans like in ex1*/
     
     while (max_iter > count){
         i = 0;
@@ -41,7 +39,7 @@ int kMeans(int len, int in1, double **points, double **cent, int dim){
         }
         i = 0;
         while(i < len){
-            clust = points[i][dim];
+            points[i][dim] = clust;
             for (j = 0; j < dim; j++)
                 cent[clust - 1][j] = points[i][j] + cent[clust - 1][j];  
             i++;
@@ -53,7 +51,7 @@ int kMeans(int len, int in1, double **points, double **cent, int dim){
             cent[i][dim] = 0;
             i++;
         }
-        if (check_euclidean_norm(cent, cent_that_used, dim, in1))
+        if (checkTheNorm(cent, cent_that_used, dim, in1))
             break;
         update_old_centroids(cent, cent_that_used, dim, in1);
         count++;
@@ -63,7 +61,7 @@ int kMeans(int len, int in1, double **points, double **cent, int dim){
     return 0;
 }
 
-int check_euclidean_norm(double **centNew, double **cent_that_used, int dim, int in1){
+int checkTheNorm(double **centNew, double **cent_that_used, int dim, int in1){
     int i;
     double e;
     i = 0;
