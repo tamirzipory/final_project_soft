@@ -39,10 +39,10 @@ enum Goal{
 /* Wam,Ddg and Lnorm's functions*/
 double **adjacency_matrix(double **data_points, int dimension, int N);
 double calc_euclidean_norm(double *x, double *y, int dimension);
-double **diagonal_matrix(double **adj_mat, int N);
+double **diagMat(double **adj_mat, int N);
 double **laplacian_matrix(double **diag_mat, double **adj_mat, int N);
 void cal_D12(double **diag_mat, int N);
-double **matrix_allocation(int num_rows, int num_cols);
+double **mat_alloc_by_row_col(int num_rows, int num_cols);
 double **calc_mul(int N, double **A, double **B);
 void sab_matrix(int N, double **A, double **B);
 double **calc_id_mat(int N);
@@ -65,15 +65,15 @@ void matrix_copy(int num_rows, int num_cols, double **dest_mat, double **src_mat
 void A_to_A_tag(int N, double **A, int *i_pointer, int *j_pointer);
 void get_params(double **A, int i, int j, double *cPointer, double *sPointer);
 void calc_curr_P(int N, double **curr_P, int i, int j, double c, double s);
-void get_eigenvalues_from_A1(double *eigenvalues, int N, double **A1);
+void get_values_from_first_mat(double *eigenvalues, int N, double **A1);
 void get_mat_transe(double **mat, int N);
-double **jacobi_eigen_merge(int N, double *eigenValues, double **eigenVectors);
-void calc_A1(int N, double **A, double c, double s, int i, int j, int *return_value);
+double **miun_of_eig(int N, double *eigenValues, double **eigenVectors);
+void calc_first_mat(int N, double **A, double c, double s, int i, int j, int *return_value);
 double calc_off_diag(int N, double **A);
 
 /* (kmeans.c) Kmeans algorithm's functions from ex2*/
 int kMeans(int N, int K, double **Datapoints, double **Centroids, int dimension);
-int check_euclidean_norm(double **newCentroids, double **oldCentroids, int dimension, int K);
+int checkTheNorm(double **newCentroids, double **oldCentroids, int dimension, int K);
 int find_cluster(double **Centroids, double *Datapoint, int dimension, int K);
 void update_old_centroids(double **newCentroids, double **oldCentroids, int dimension, int K);
 #endif
