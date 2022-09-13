@@ -160,45 +160,43 @@ double calc_s(double t){
     return t / sqrt(1 + (t * t));
 }
 
-
-
-/* Receives matrix A, i,j- the location of the pivot
- * Calculates c,s,t according to the given formulas */
-void get_params(double **A, int i, int j, double *point_1, double *point_2){
-    double theta, t;
-    double signTheta = 1;
-
+void get_params(double **A, int i, int j, double *p1, double *p2){
+    double th, t;
+    double sign = 1;
     if (A[i][j] == 0){
-        *point_1 = 1;
-        *point_2 = 0;
+        *p1 = 1;
+        *p2 = 0;
         return;
     }
-
-    theta = calc_theta(A, i, j);
-    if (theta < 0)
-        signTheta = -1;
-    t = calc_t(signTheta, theta);
-    *point_1 = divide(t);
-    *point_2 = t / sqrt(1 + (t * t));
+    th = calc_theta(A, i, j);
+    if (0 > th)
+        sign = -1;
+    t = calc_t(sign, th);
+    *p1 = divide(t);
+    *p2 = t / sqrt((t * t) + 1);
 }
 
-/* Receives matrix the_p_mat, N- number of rows/columns, i,j- the location of the pivot, and c,s
- * Updates P according to the given instructions */
-void calc_curr_P(int max_iter, double **the_p_mat, int i, int j, double c, double s){
-    int k, l;
-    /* P[i][i]=P[j][j]=c, P[i][j]=s, P[j][i]=-s 
-     * on diagonal= 1, else=0*/
-  
-
-    for (k = 0; k < max_iter; ++k){
-        for (l = 0; l < max_iter; ++l){
-            if (k == l)
-                the_p_mat[k][l] = (k == i || l == j) ? c : 1; /* 1 on the diagonal*/
-            else if (k == j && l == i)
-                the_p_mat[k][l] = -s;
-            else
-                the_p_mat[k][l] = (k == i && l == j) ? s : 0;
+void calc_curr_P(int max_iter, double **the_p_mat, int i, int j, double d1, double d2){
+    int in1, in2;
+    in1 = 0;
+    while(in1 < max_iter){
+        in2 = 0;
+        while(in2 < max_iter){
+            if(in1 == in2){
+                if(in1 == i || in2 == j)
+                   the_p_mat[in1][in2] = d1;
+                else the_p_mat[in1][in2] = 1;   
+            }
+            else if (in1 == j && in2 == i)
+                the_p_mat[in1][in2] = -d2;
+            else{
+                if(in1 == i && in2 == j)
+                    the_p_mat[in1][in2] = d2;
+                else the_p_mat[in1][in2] = 0;
+            }
+            in2++;
         }
+        in1++;
     }
 }
 
