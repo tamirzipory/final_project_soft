@@ -826,6 +826,6 @@ int main(int argc, char *argv[]){
     }
     else
         catch_err_of_int(0 != 0);
-    
+    printf("\n");
     return 0;
 }
