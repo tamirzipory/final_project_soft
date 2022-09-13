@@ -171,27 +171,30 @@ void get_params(double **A, int i, int j, double *p1, double *p2){
     *p1 = divide(t);
     *p2 = t / sqrt((t * t) + 1);
 }
-
-void calc_curr_P(int max_iter, double **the_p_mat, int i, int j, double c, double s){
-    int k, l;
-    /* P[i][i]=P[j][j]=c, P[i][j]=s, P[j][i]=-s 
-     * on diagonal= 1, else=0*/
-  
-
-    for (k = 0; k < max_iter; ++k){
-        for (l = 0; l < max_iter; ++l){
-            if (k == l)
-                the_p_mat[k][l] = (k == i || l == j) ? c : 1; /* 1 on the diagonal*/
-            else if (k == j && l == i)
-                the_p_mat[k][l] = -s;
-            else
-                the_p_mat[k][l] = (k == i && l == j) ? s : 0;
+void calc_curr_P(int max_iter, double **the_p_mat, int i, int j, double d1, double d2){
+    int in1, in2;
+    in1 = 0;
+    while(in1 < max_iter){
+        in2 = 0;
+        while(in2 < max_iter){
+            if(in1 == in2){
+                if(in1 == i || in2 == j)
+                   the_p_mat[in1][in2] = d1;
+                else the_p_mat[in1][in2] = 1;   
+            }
+            else if (in1 == j && in2 == i)
+                the_p_mat[in1][in2] = -d2;
+            else{
+                if(in1 == i && in2 == j)
+                    the_p_mat[in1][in2] = d2;
+                else the_p_mat[in1][in2] = 0;
+            }
+            in2++;
         }
+        in1++;
     }
 }
 
-/* Receives matrix A1, N- number of rows/columns and a pointer to eigenvalues's array
- * Updates eigenvalues according to the diagonal of A1 */
 void get_eigenvalues_from_A1(double *eigenvalues, int N, double **A1){
     int i;
     for (i = 0; i < N; ++i)
