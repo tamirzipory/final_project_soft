@@ -7,7 +7,7 @@ double **calc_jacob(int len_mat, double **A){
     if (V_mat == NULL)
         return NULL;
 
-    the_p_mat = matrix_allocation(len_mat, len_mat);
+    the_p_mat = mat_alloc_by_row_col(len_mat, len_mat);
     if (the_p_mat == NULL){
         free_memory(V_mat, len_mat);
         return NULL;
@@ -27,7 +27,7 @@ double **calc_jacob(int len_mat, double **A){
             break;
         get_params(A, i, j, &d1, &d2);            
         calc_curr_P(len_mat, the_p_mat, i, j, d1, d2);      
-        calc_A1(len_mat, A, d1, d2, i, j, &ret); 
+        calc_first_mat(len_mat, A, d1, d2, i, j, &ret); 
         finish_V_mat=V_mat, V_mat = calc_mul(len_mat, V_mat, the_p_mat); 
         free_memory(finish_V_mat,len_mat);
         if(ret == 0){
@@ -42,8 +42,8 @@ double **calc_jacob(int len_mat, double **A){
         }
         second_A_mat = calc_off_diag(len_mat, A);
     }
-    get_eigenvalues_from_A1(values, len_mat, A);           
-    mat_of_jacobi = jacobi_eigen_merge(len_mat, values, V_mat); 
+    get_values_from_first_mat(values, len_mat, A);           
+    mat_of_jacobi = miun_of_eig(len_mat, values, V_mat); 
     free_memory(V_mat, len_mat);
     free_memory(the_p_mat, len_mat);
     free(values);
@@ -51,9 +51,9 @@ double **calc_jacob(int len_mat, double **A){
 }
 
 
-void calc_A1(int len_mat, double **A, double d1, double d2, int i, int j, int *ret){
+void calc_first_mat(int len_mat, double **A, double d1, double d2, int i, int j, int *ret){
     int r;
-    double **rows_cols = matrix_allocation(2, len_mat);
+    double **rows_cols = mat_alloc_by_row_col(2, len_mat);
     if (NULL == rows_cols){
         *ret = 0;
         return;
@@ -196,7 +196,7 @@ void calc_curr_P(int max_iter, double **the_p_mat, int i, int j, double d1, doub
     }
 }
 
-void get_eigenvalues_from_A1(double *values, int len, double **mat){
+void get_values_from_first_mat(double *values, int len, double **mat){
     int i = 0;
     while( i < len){
         values[i] = mat[i][i];
@@ -204,11 +204,12 @@ void get_eigenvalues_from_A1(double *values, int len, double **mat){
     }
 }
 
-double **jacobi_eigen_merge(int len, double *values, double **vectors){
+/*It's do merge of the eighens*/
+double **miun_of_eig(int len, double *values, double **vectors){
     double **ret = NULL;
     int i;
     int plus_one = len+1;
-    ret = matrix_allocation(plus_one, len);
+    ret = mat_alloc_by_row_col(plus_one, len);
     if (ret == NULL)
         return NULL;
     i = 0;
