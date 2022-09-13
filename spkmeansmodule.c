@@ -93,7 +93,7 @@ static PyObject *fit(PyObject *self, PyObject *args)
             PyErr_SetString(PyExc_RuntimeError, "An Error Has Occurred");
             return NULL;
         }
-        rows = (goal == 4) ? (N + 1) : len; /*Jacobi needs N+1 rows*/
+        rows = (goal == 4) ? (len + 1) : len; /*Jacobi needs N+1 rows*/
         cols=len; /* In wam,ddg,lnorm,jacobi*/
         if(goal==5)
             cols=K; /* In spk (first run)- T's dimesnions are N*K (updated/original k) */
