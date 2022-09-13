@@ -1,6 +1,5 @@
 #include "spkmeans.h"
 
-
 void invalid_input(){
     printf("Invalid Input!\n");
     exit(1);
@@ -15,73 +14,63 @@ void err_print(){
 #include "spk.c"
 
 /* ================================== WAM (Weighted Adjacency Matrix) ================================== */
-/* Receives N datapoints and their dimension
- * Returns the corresponding weighted adjacency matrix.
- * If an error occurred returns NULL*/
+
 #include "wam.c"
 /* ================================== Done WAM ==================================*/
 
 /* ================================== DDG (Diagonal Degree Matrix) ================================== */
-/* Receives weighted adjacency matrix and N- number of rows/columns
- * Returns the corresponding diagonal degree matrix.
- * If an error occurred returns NULL*/
+
 #include "ddg.c"
 /* ================================== Done DDG ==================================*/
 
 /* ================================== LNORM (Normalized Graph Laplacian) ================================== */
-/* Receives diagonal degree matrix,weighted adjacency matrix and N- number of rows/columns
- * Returns the corresponding normalized graph Laplacian matrix.
- * If an error occurred returns NULL*/
+
 #include "lnorm.c"
 /* ================================== Done LNORM ==================================*/
 
 /* ================================== JACOBI ================================== */
-/* Receives symetric matrix A- size N*N
- * Returns matrix with first row= eigenvalues, next rows are the
- * corresponding eigenvectors (each column is a vector)
- * If an error occurred returns NULL*/
+
 #include "jacobi.c"
 /* ================================== Done JACOBI ==================================*/
 
 /* ================================== General/ Main's Functions ==================================*/
-double **matrix_allocation(int num_rows, int num_cols){
-    /*allocation of memory of size (nxn) and return 1 if there was a failure!*/
+double **matrix_allocation(int rows, int cols){
+    /*alloc of mat in size of rows * cols*/
     int i;
-    double **mat = malloc((sizeof(double *)) * num_rows);
-    if (mat == NULL)
-        return NULL;
-    for (i = 0; i < num_rows; i++){
-        mat[i] = malloc((sizeof(double)) * (num_cols));
-        if (mat[i] == NULL)
-            return NULL;
+    double **mat = calloc(rows, (sizeof(double *)));
+    if (NULL == mat)
+        err_print();
+    i = 0;
+    while (i < rows){
+        mat[i] = calloc(cols, (sizeof(double)) );
+        if (NULL == mat[i])
+            err_print();
+        i++;
     }
     return mat;
 }
 
-/* Receives file's pointer and an int- find_who (2 options: N (FIND_N) or D (FIND_D))
- * Returns N or D according to find_who */
-int get_n_d_parameters(FILE *ifp, int find_who){
-    int count;
-    char c;
-    count = 0;
-    while ((c = fgetc(ifp)) != EOF){
-        /* N- calculated by number of rows ("\n")*/
-        if (find_who == FIND_N){
-            if (c == '\n')
-                count++;
-        }
-        else{
-            /* D- calculated by number of comas (+ 1) in first row.
-             * After done reading first row- returns calculated D */
-            if (c == '\n'){
+/* Receives file's pointer and an int- situattion (2 options: N (FIND_N) or D (FIND_D))
+ * Returns N or D according to situattion */
+int get_n_d_parameters(FILE *ifp, int situattion){
+    char ch;
+    int count = 0;
+    ch = 0;
+    while ((ch = fgetc(ifp)) != EOF){
+        if(situattion != 1){
+            if (ch == '\n'){
                 rewind(ifp);
                 count++;
                 return count;
             }
             else{
-                if (c == ',')
+                if (ch == ',')
                     count++;
-            }
+                }
+        }
+        else{
+            if (ch == '\n')
+                count++;
         }
     }
     rewind(ifp);
@@ -90,10 +79,10 @@ int get_n_d_parameters(FILE *ifp, int find_who){
 
 /* Receives matrices dest_mat,src_mat and number of rows and columns
  * Updates dest_mat to be a copy of src_mat */
-void matrix_copy(int num_rows, int num_cols, double **dest_mat, double **src_mat){
+void matrix_copy(int rows, int cols, double **dest_mat, double **src_mat){
     int i, j;
-    for (i = 0; i < num_rows; i++){
-        for (j = 0; j < num_cols; j++)
+    for (i = 0; i < rows; i++){
+        for (j = 0; j < cols; j++)
             dest_mat[i][j] = src_mat[i][j];
         
     }
@@ -101,13 +90,13 @@ void matrix_copy(int num_rows, int num_cols, double **dest_mat, double **src_mat
 
 /* Receives file's pointer, pointer to an empty matrix of datapoints and num of rows, num of cols
  * Updated data_input according to the file's data */
-void set_input(FILE *ifp, double **data_input, int num_rows, int num_cols){
+void set_input(FILE *ifp, double **data_input, int rows, int cols){
     int i, j;
     double curr_value;
     i = 0, j = 0;
 
-    for (i = 0; i < num_rows; i++){
-        for (j = 0; j < num_cols; j++){
+    for (i = 0; i < rows; i++){
+        for (j = 0; j < cols; j++){
             if (fscanf(ifp, "%lf", &curr_value) == 1)
                 data_input[i][j] = curr_value;
             else
@@ -118,11 +107,11 @@ void set_input(FILE *ifp, double **data_input, int num_rows, int num_cols){
     rewind(ifp);
 }
 
-/* Receives a matrix: mat_to_free and num_rows- matrix's number of rows
+/* Receives a matrix: mat_to_free and rows- matrix's number of rows
  * Frees mat_to_free*/
-void free_memory(double **mat_to_free, int num_rows){
+void free_memory(double **mat_to_free, int rows){
     int i;
-    for (i = 0; i < num_rows; i++)
+    for (i = 0; i < rows; i++)
         free(mat_to_free[i]);
     free(mat_to_free);
 }
@@ -141,20 +130,20 @@ void msg_and_exit(int error_type, int is_error){
 }
 
 /* Receives a matrix, number of rows and columns, and enum Goal
- * Prints the matrix (if the goal is jacobi then updates num_rows +1) */
-void print_result(double **mat, int num_rows, int num_cols, enum Goal goal)
+ * Prints the matrix (if the goal is jacobi then updates rows +1) */
+void print_result(double **mat, int rows, int cols, enum Goal goal)
 {
     int i, j;
     if (goal == JACOBI)
-        num_rows = num_rows+1;
-    for (i = 0; i < num_rows; i++){
-        for (j = 0; j < num_cols; j++){
-            if (j == num_cols - 1)
+        rows = rows+1;
+    for (i = 0; i < rows; i++){
+        for (j = 0; j < cols; j++){
+            if (j == cols - 1)
                 printf("%.4f", mat[i][j]);
             else
                 printf("%.4f,", mat[i][j]);
         }
-        if (i != num_rows - 1)
+        if (i != rows - 1)
             printf("\n");
     }
 }
