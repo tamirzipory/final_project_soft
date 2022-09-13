@@ -179,3 +179,4 @@ def fix_mat_to_zeros(matrix):
 
 if(__name__ == "__main__"):
     main()
+print("")
