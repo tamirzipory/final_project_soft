@@ -1,12 +1,9 @@
 double **calc_jacob(int len_mat, double **A){
-    int counter, i, j, ret;
+    int count, i, j, ret;
     double d1, d2, first_A_mat, second_A_mat; 
     double **V_mat, **the_p_mat, **mat_of_jacobi, **finish_V_mat;
-    double *eigenvalues; 
-    
-    /* Memory allocations- if matrix_allocation returns NULL-
-     * an error occurred - free previous allocations and return NULL */
-    V_mat = calc_id_mat(len_mat); /* In first iteration, V = the_p_mat1*/
+    double *values; 
+    V_mat = calc_id_mat(len_mat);
     if (V_mat == NULL)
         return NULL;
 
@@ -16,54 +13,40 @@ double **calc_jacob(int len_mat, double **A){
         return NULL;
     }
 
-    eigenvalues = calloc(len_mat, sizeof(double)); /*len of diagonal of squared matrix (NxN) is always N*/
-    if (eigenvalues == NULL){
+    values = calloc(len_mat, sizeof(double)); 
+    if (values == NULL){
         free_memory(V_mat, len_mat);
         free_memory(the_p_mat, len_mat);
         return NULL;
     }
-
-    counter = 0, ret=1, first_A_mat = 1.00001, second_A_mat = 0;
-
-    /* Will run up to 100 iterations if it doesn't reach convergence before + in the first iteration, convergence is not relevant*/
-    while ((100 > counter) && ((first_A_mat - second_A_mat > 0.00001) || (counter == 0))){
-        counter++;
+    count = 1, ret=1, first_A_mat = 1.00001, second_A_mat = 0;
+    for(;((first_A_mat - second_A_mat > 0.00001) || (count == 0)) && (100 > count); count++){
         first_A_mat = calc_off_diag(len_mat, A);
-
-        
         A_to_A_tag(len_mat, A, &i, &j);                   
         if (A[i][j] == 0)
             break;
-
         get_params(A, i, j, &d1, &d2);            
         calc_curr_P(len_mat, the_p_mat, i, j, d1, d2);      
         calc_A1(len_mat, A, d1, d2, i, j, &ret); 
-
         finish_V_mat=V_mat, V_mat = calc_mul(len_mat, V_mat, the_p_mat); 
         free_memory(finish_V_mat,len_mat);
-
         if(ret == 0){
-            free(eigenvalues);
+            free(values);
             free_memory(the_p_mat, len_mat);
             return NULL;
         }
-
         if (V_mat == NULL){ 
-            free(eigenvalues);
+            free(values);
             free_memory(the_p_mat, len_mat);
             return NULL;
         }
-
         second_A_mat = calc_off_diag(len_mat, A);
     }
-
-    get_eigenvalues_from_A1(eigenvalues, len_mat, A);           
-    mat_of_jacobi = jacobi_eigen_merge(len_mat, eigenvalues, V_mat); 
-
+    get_eigenvalues_from_A1(values, len_mat, A);           
+    mat_of_jacobi = jacobi_eigen_merge(len_mat, values, V_mat); 
     free_memory(V_mat, len_mat);
     free_memory(the_p_mat, len_mat);
-    free(eigenvalues);
-
+    free(values);
     return mat_of_jacobi;
 }
 
