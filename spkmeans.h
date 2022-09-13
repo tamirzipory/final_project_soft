@@ -39,7 +39,7 @@ enum Goal{
 /* Wam,Ddg and Lnorm's functions*/
 double **adjacency_matrix(double **data_points, int dimension, int N);
 double calc_euclidean_norm(double *x, double *y, int dimension);
-double **diagMat(double **adj_mat, int N);
+double **diagonal_matrix(double **adj_mat, int N);
 double **laplacian_matrix(double **diag_mat, double **adj_mat, int N);
 void cal_D12(double **diag_mat, int N);
 double **mat_alloc_by_row_col(int num_rows, int num_cols);
