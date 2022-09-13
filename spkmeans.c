@@ -15,7 +15,7 @@ void err_print(){
 
 /* Receives N- number of rows, *K- pointer to K (number of clusters) and lnorm's matrix (created from wam,ddg->lnorm)
  * Returns after 3-5 steps from "The Normalized Spectral Clustering Algorithm" a matrix T as N datapoints and calculate K if needed (case K=0)*/
-#include spk.c
+#include "spk.c"
 /* ================================== Done SPK ==================================*/
 
 /* ================================== WAM (Weighted Adjacency Matrix) ================================== */
