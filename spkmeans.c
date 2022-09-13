@@ -290,7 +290,7 @@ void fullSpectral(){
 int find_vector_num(FILE *fp){
     int ret;
     char ch, before;
-    before = "";
+    before = 0;
     ret = 0;
     while((ch = fgetc(fp))!=EOF){
         if(ch == '\n')
