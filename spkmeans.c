@@ -113,6 +113,7 @@ void free_memory(double **mat, int rows){
     int i = 0;
     while(i < rows){
         free(mat[i]);
+        i++;
     }
     free(mat);
 }
