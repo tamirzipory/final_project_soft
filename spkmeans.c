@@ -138,7 +138,7 @@ double **run_goal(enum Goal target, double **data, int n1, int n2, int *n3){
     if(target == 1)
         return ret;
     mat_wam = ret;
-    ret = diagMat(mat_wam, n1);
+    ret = diagonal_matrix(mat_wam, n1);
     if (target == 2 ||ret == NULL){
         free_memory(mat_wam, n1);
         return ret;
