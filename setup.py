@@ -1,12 +1,12 @@
-from setuptools import Extension, setup
+from distutils.core import setup, Extension
 
-module = Extension("myspkmeans",
-                   sources=[
-                       'spkmeans.c',
-                       'spkmeansmodule.c'
-                   ])
-setup(name='myspkmeans',
+"""
+The old way of doing things, using distutils.
+In addition, a minimalist setup is shown.
+"""
+
+
+setup(name='spkmeansmodule',
       version='1.0',
-      author="Tamir Zipory and Yarin Diga",
-      description='פרוייקט מזדיין',
-      ext_modules=[module])
+      description='spkmeansmodule for sp class',
+      ext_modules=[Extension('spkmeansmodule', sources=['spkmeansmodule.c'])])
