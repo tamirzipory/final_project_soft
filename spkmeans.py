@@ -1,151 +1,120 @@
-import pandas as pd
-import numpy as np
+import spkmeansmodule
 import sys
-import myspkmeans as mspk
-from enum import Enum
+from sys import argv
+import numpy as np
+import pandas as pd
+import math
 
+def kmeansPP(k, max_iter, eps, t_mat): # k++ algorithm
 
-class goals(Enum):
-    spk = "spk"
-    wam = "wam"
-    ddg = "ddg"
-    lnorm = "lnorm"
-    jacobi = "jacobi"
+    N = len(t_mat) #rows
+    dims = len(t_mat[0]) #columns
 
-
-def main():
-    K = int(sys.argv[1])
-    if (not (K >= 0)):
-        print("Invalid Input!")
-        assert(K >= 0)
-    max_iter = 300
-    goal = sys.argv[2]
-    if (not (goal in goals._value2member_map_)):
-        print("Invalid Input!")
-        assert(goal in goals._value2member_map_)
-    file_name = sys.argv[3]
-    vector_list = readfile(file_name)
-    vector_list.index = vector_list.index.astype('int64')
-    vector_num = vector_list.shape[0]
-    vector_len = vector_list.shape[1]
-    vector_list_to_C = vector_list.values.tolist()
-    if (K == 0):
-        newK = mspk.heuristic(vector_list_to_C, vector_num, vector_len)
-        K = newK
-
-    if (goal == "spk"):
-        new_vector_list = mspk.fullSpectralPy(K, vector_num, vector_list_to_C)
-        new_vector_list = pd.DataFrame(new_vector_list)
-        vector_num = new_vector_list.shape[0]
-        centroids_for_C, indices = init_centroids(
-            K, new_vector_list.values, new_vector_list.index, vector_num)  # new_vector_list
-        new_vector_list_to_C = new_vector_list.values.tolist()
-        final_centroids = mspk.fit(
-            centroids_for_C, new_vector_list_to_C, max_iter, K)
-        output_centroids = mspk.kmeans(
-            K, vector_num, vector_len, new_vector_list_to_C, final_centroids)
-        converted_indexes = [str(elm) for elm in indices]
-        joined_indexes = ",".join(converted_indexes)
-        output_centroids = mat_neg_zeros_eraser(output_centroids)
-        if (joined_indexes != "44"):
-            print(joined_indexes)
-            printMat(output_centroids)
-        else:
-            print("An Error Has Occured\n")
-    elif (goal == "wam"):
-        matrix = mspk.WeightedAdjacencyMatrix(
-            vector_list_to_C, vector_num, vector_len)
-        matrix = mat_neg_zeros_eraser(matrix)
-        printMat(matrix)
-    elif (goal == "ddg"):
-        weighted_matrix = mspk.WeightedAdjacencyMatrix(
-            vector_list_to_C, vector_num, vector_len)
-        diagonal_matrix = mspk.DiagonalDegreeMatrix(
-            weighted_matrix, vector_num, vector_len)
-        diagonal_matrix = mat_neg_zeros_eraser(diagonal_matrix)
-        printMat(diagonal_matrix)
-
-    elif (goal == "lnorm"):
-        matrix = mspk.NormalizedGraphLaplacian(
-            vector_list_to_C, vector_num, vector_len)
-        matrix = mat_neg_zeros_eraser(matrix)
-        printMat(matrix)
-
-    elif (goal == "jacobi"):
-        eigenvalues, eigenvectors = mspk.Jacobi(
-            vector_list_to_C, vector_num, vector_len)
-        for i in range(len(eigenvalues)):      # erasing minus zeros for eigenvalues
-            if ((eigenvalues[i] < 0) and (eigenvalues[i] > -0.00005)):
-                eigenvalues[i] = 0
-        print(",".join(["%.4f" % float(i) for i in eigenvalues]))
-        eigenvectors = mat_neg_zeros_eraser(eigenvectors)
-        printMat(eigenvectors)
-
-
-def printMat(matrix):
-    for i in range(len(matrix)):
-        if i == (len(matrix)-1):
-            print(",".join(["%.4f" % float(i) for i in matrix[i]]), end="")
-        else:
-            print(",".join(["%.4f" % float(i) for i in matrix[i]]))
-
-
-def init_centroids(k, vector_list, vector_list_ind, vector_num):
+    #k-means++
+    data = t_mat
+    sum_dists = 0
+    i = 0
     np.random.seed(0)
-    if (not (k < vector_num)):
-        print("Invalid Input!")
-        assert(k < vector_num)
-    dist = [0 for i in range(vector_num)]
-    centroid_for_C = [0 for i in range(k)]
-    centroids_index = [0 for i in range(k)]
-    # first centroid
-    rand_index = np.random.choice(vector_num)
-    centroid_for_C[0] = vector_list[rand_index]
-    centroids_index[0] = vector_list_ind[rand_index]
-    z = 1
-    while z < k:
-        # calc dist
-        for i in range(vector_num):
-            if z == 1:
-                dist[i] = distance(vector_list[i], centroid_for_C[0])
+    new_cent = np.random.randint(0, N) # choose first centroid randomly
+    dists_probs = np.full((2,N) , math.inf) # create distances and probabilities array
+    centroids = np.zeros((1,dims)) + data[new_cent] # create centroids array and insert first centroid 
+    indices = [0 for i in range(k)] 
+    indices[0] = new_cent # first indice in result list
+    while (i < k-1): # main loop
+        dists_probs[0] = np.minimum(dists_probs[0] , np.sum(np.power((data - centroids[i]) , 2) , axis = 1)) # keep min distance
+        sum_dists = np.sum(dists_probs[0] , axis = 0) # sum of distances from calculated centroid
+        np.true_divide(dists_probs[0] , sum_dists , out = dists_probs[1]) # point probability = divide distance from centroid by sum of distances
+        new_cent = np.random.choice(N , p = dists_probs[1]) # choose new index according to the probabilities
+        i += 1
+        indices[i] = (int(new_cent)) # add new index
+        centroids = np.vstack([centroids , data[new_cent]]) # add new centroid
+    return indices
+
+def normalize_u(u_mat): 
+    t_mat = u_mat
+    for i in range(len(u_mat)):
+        sum_j = 0
+        for j in range(len(u_mat[0])):
+            sum_j += (u_mat[i][j] ** 2)
+        for j in range(len(u_mat[0])):
+            if sum_j == 0:
+                t_mat[i][j] = 0
             else:
-                dist[i] = min_dist_centroid(
-                    vector_list, i, centroid_for_C, z, dist)
-        # calc prob
-        sum = np.sum(dist)
-        prob = dist/sum
-        # find new centroid
-        chosen_ind = np.random.choice(vector_num, p=prob)
-        centroid_for_C[z] = vector_list[int(chosen_ind)]
-        centroids_index[z] = vector_list_ind[int(chosen_ind)]
-        z += 1
-    # convert to python lists
-    for i in range(k):
-        centroid_for_C[i] = centroid_for_C[i].tolist()
-    return centroid_for_C, centroids_index
+                t_mat[i][j] = u_mat[i][j] / (sum_j ** 0.5)
+    return t_mat
 
+def final_output(k, output_mat_c, goal): #final adjustments and printing
+    if goal == 5: # only for "spk" - retrieve k centroids and print k indices
+        init_centroids = kmeansPP(k , 300 , 0 , output_mat_c) # get initial k++ centroids
+        for ind in init_centroids: # cast to float for C api
+            ind = float(ind)   
+        centP = [str(a) for a in init_centroids] # for printing
+        print(','.join(centP)) #print indices from k++
+        output_mat_c = output_mat_c.tolist() # convert np.array to list for C-api
+        output_mat_c = spkmeansmodule.kmeansCapi(output_mat_c , init_centroids , k) #get final centroids from kmeans C   
+    # print output matrix by requested format   
+    new_res = [[0 for i in range(len(output_mat_c[0]))] for j in range(k)] 
+    for i in range(k): 
+        for j in range(len(output_mat_c[0])):
+            new_res[i][j] = output_mat_c[i][j] 
+            if j == len(output_mat_c[0]) - 1:
+                print(format(new_res[i][j], ".4f"))
+            else:
+                print(format(new_res[i][j], ".4f"), end = '')
+                print("," , end = '')
+    print("")  
 
-def readfile(filename):
-    file = pd.read_csv(filename, header=None)
-    return file
+def extract_from_file(file_name): # retrieve data points 
+    data_points = pd.read_csv(file_name, sep=",", header=None)
+    N = len(data_points)
+    dims = len(data_points.columns)
+    res = np.array(data_points)
+    res = res.tolist()
+    return res
 
+#checking arguments
+if len(argv) != 4: #check num of args 
+    print("Invalid Input!")
+    sys.exit(1)
+try:
+    k = int(argv[1])
+    if k < 0:
+        print("Invalid Input!")
+        sys.exit(1)
+except:
+    print("Invalid Input!")
+    sys.exit(1)
+goal = argv[2]
+if (goal!="spk") and (goal!="wam") and (goal!="ddg") and (goal!="lnorm") and (goal!="jacobi") :
+    print("Invalid Input!")
+    sys.exit(1)
 
-def distance(v1, v2):
-    return np.sum((v1-v2)**2)
+file_name = argv[3]
 
+data_points = extract_from_file(file_name)
 
-def min_dist_centroid(vector_list, i, centroid_for_C, z, dist):
-    return min(distance(vector_list[i], centroid_for_C[z-1]), dist[i])
-
-
-def mat_neg_zeros_eraser(matrix):
-    for i in range(len(matrix)):
-        for j in range(len(matrix[0])):
-            if ((matrix[i][j] > -0.00005) and (matrix[i][j] < 0)):
-                matrix[i][j] = 0
-    return matrix
-
-
-if(__name__ == "__main__"):
-    main()
-    print()
+if goal == "spk":
+    goal = 5 # encoding goal to int
+    c_V_mat = spkmeansmodule.spkCapi(data_points) #receive jacobi's output
+    k_sortedV = spkmeansmodule.eigenGapCapi(c_V_mat) #receive k from heuristic and sorted V from jacobi [k, sortedV]
+    if k == 0: # obtain k from eigenGap heuristic, else k remains as given in input
+        k = k_sortedV[0]
+    eigen_vectors = k_sortedV[1]
+    eigen_vectors = eigen_vectors[1:] #leave only the vectors
+    if k >= len(eigen_vectors): # k >= N
+        print("Invalid Input!")
+        sys.exit(1)
+    else:
+        u_mat = np.array(eigen_vectors)
+        u_mat = np.delete(u_mat, np.s_[k:], 1) # take only first k eigen vectors
+        t_mat = normalize_u(u_mat)
+        final_output(k, t_mat, goal) # send T to next stages of the algorithm: k++ and kmeans
+else: #goal != spk 
+    # encoding goal to int
+    if goal == "wam": goal = 1
+    if goal == "ddg": goal = 2
+    if goal == "lnorm": goal = 3
+    if goal == "jacobi": goal = 4
+    c_output = spkmeansmodule.pyToCtoPy(data_points, goal) #main func will return wam/ddg/lnorm/jacobi output
+    k = len(c_output) # adjust k for printing dimensions
+    final_output(k, c_output, goal) # send for printing
