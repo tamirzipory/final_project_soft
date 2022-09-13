@@ -1,211 +1,179 @@
-#include <Python.h>
 #define PY_SSIZE_T_CLEAN
+#include <Python.h>
+#include <math.h> 
+#include <string.h>
 #include "spkmeans.h"
-int global_rows, global_cols; /* global variables that contain the data matrix dimensions */
 
-/* Create a Python None object in case of need to return NULL, return Python None instead.*/
-static PyObject* None(){
-    Py_INCREF(Py_None);
-    return Py_None;
+/* input: PyObject final_matrix, matrix A, matrix B.
+if(B!=NULL): set final_matrix to B with the diagonal of A as the  
+             first row --> final_matrix:([(N+1)*N]). | k == N,  A,B:([N*N])
+else: set final_matrix to A --> final_matrix:([N*K]). | A:([N*K]) */
+void set_matrix(PyObject* final_matrix, double **A, double **B, int N, int k){
+    int i,j;
+    PyObject* rows;
+
+    for(i=0; i<N+(B!=NULL); i++){
+        rows = PyList_New(k);
+        for(j=0; j<k; j++){
+            if(B!=NULL)
+                (i==0) ? PyList_SetItem(rows, j, Py_BuildValue("d", A[j][j]))
+                       : PyList_SetItem(rows, j, Py_BuildValue("d", B[i-1][j]));
+            else PyList_SetItem(rows, j, Py_BuildValue("d", A[i][j]));
+        }
+        PyList_SetItem(final_matrix, i, Py_BuildValue("O", rows));
+    }
 }
 
-/* Creates a 2D C matrix from a given Python list. */
-static double** Py_Arr_To_C(PyObject* flat_py_arr, int rows, int cols) {
-    double** array;
-    int i, j;
-    array = Array_2D(rows, cols, 1);
-    if (array == NULL)
-        return NULL;
+void set_T(PyObject* T, double** A, double** B, int N, int k) {
+    int i,j,l;
+    double sum_sq;
 
-    for (i = 0; i < rows; i++) {
-        for (j = 0; j < cols; j++) {
-            array[i][j] = PyFloat_AsDouble((PyList_GetItem(flat_py_arr, j + i*cols)));
+    transpose(B, N);   
+    sort_matrices(A ,B, 0, N-1);
+    transpose(B, N);
+
+    if (k==0)
+        k = eigengap_heuristic(A, N);
+    
+    for(i=0; i<N; i++){
+        for(j=0; j<k; j++){
+            sum_sq = 0;
+            for (l=0; l<k; l++)
+                sum_sq+=B[i][l]*B[i][l];
+            A[i][j] = (sum_sq==0) ? 0 : B[i][j]/sqrt(sum_sq);
         }
     }
-    return array;
+    
+    set_matrix(T, A, NULL ,N, k);    
 }
 
-/* Creates a Python list from a given 2D C matrix. */
-static PyObject* C_Arr_To_Py(double** c_array, int rows, int cols) {
-    int i, j;
-    PyObject* py_arr = PyList_New(rows * cols);
-    for (i = 0; i < rows; i++) {
-        for (j = 0; j < cols; j++) {
-            PyList_SetItem(py_arr, j + i * cols, PyFloat_FromDouble(c_array[i][j]));
+void set_final_martix(PyObject* df_py, double **df_c, double **A, double **B, int N, int k, char *goal){
+    
+    if(!strcmp(goal,"spk"))
+        set_T(df_py, A, B, N, k);
+
+    else if(!strcmp(goal, "jacobi"))
+        set_matrix(df_py, df_c, A, N, N);
+
+    else if(!strcmp(goal, "ddg"))
+        set_matrix(df_py, B, NULL, N, N); 
+
+    else
+        set_matrix(df_py, A, NULL, N, N); 
+}
+
+/* set R with the data in py_ob. | R:([N*k]) */
+void set_data( double**R, PyObject* py_ob, int N, int k){
+    int i,j;
+
+    for(i=0; i<N; i++)
+        for(j=0; j<k; j++) 
+            R[i][j] = PyFloat_AsDouble(
+                      PyList_GetItem(
+                      PyList_GetItem(py_ob, i), j));
+}
+
+
+PyObject* kmeans(PyObject* vectors_py, PyObject* centroids_py, int d){
+    int N, k, i, j, nearest_cent, max_iter=300, *cluster_size;
+    double **centroids, **vectors, **weights, **cluster_weight;
+
+    N = PyList_Size(vectors_py);
+    k = PyList_Size(centroids_py);
+
+    weights = malloc_matrix(k,d);
+    cluster_weight = malloc_matrix(k,d);
+    cluster_size = malloc(k*sizeof(int));
+    vectors = malloc_matrix(N, d);
+    centroids = malloc_matrix(k, d); 
+
+    set_data(vectors, vectors_py, N, d);
+    set_data(centroids, centroids_py, k, d);
+
+    vectors_py =  PyList_New(k);
+
+    while(max_iter>0){
+        for(i=0; i<k; i++){ 
+            cluster_size[i]=0;
+            for(j=0; j<d; j++)
+                cluster_weight[i][j] = 0;
         }
-    }
-    return py_arr;
+        for(i=0; i<N; i++){
+            nearest_cent = min_dist(vectors[i], centroids, k, d);
+            cluster_size[nearest_cent]++; 
+            for(j=0; j<d;j++)
+                cluster_weight[nearest_cent][j] += vectors[i][j]; 
+        }
+        for(i=0; i<k; i++){
+            for(j=0; j<d; j++)
+                weights[i][j] = (cluster_size[i]==0) ? 0 : cluster_weight[i][j]/cluster_size[i]; 
+            if(euclidean_norm_sub(centroids[i], weights[i], d) < 0) 
+                max_iter=0;
+            for(j=0; j<d; j++)
+                centroids[i][j]=weights[i][j];                  
+        }
+        max_iter--;
+    } 
+
+    set_matrix(vectors_py, centroids, NULL ,k, d); 
+
+    free_matrix(centroids, k);
+    free_matrix(vectors, N);
+    free_matrix(weights, k);
+    free_matrix(cluster_weight, k);
+    free(cluster_size);
+
+    return vectors_py;
 }
 
-/*
- * Implements the k-means algorithm
- * args: rows, cols - dimension on the vectors' matrix
- *       rows, K - dimension on the clusters' matrix
- *       vectors - a Python list of the data vectors
- *       cluster - a Python list of the initial clusters
- * return: Python list of the k final clusters
- * Python equivalent: fit
- */
-static PyObject* kmeans_capi(PyObject *self, PyObject *args) {
-    int K, res, rows, cols;
-    double** vectors;
-    double** clusters;
-    PyObject* flat_vectors;
-    PyObject* flat_clusters;
-    if (!PyArg_ParseTuple(args, "iiiOO", &K, &rows, &cols, &flat_vectors, &flat_clusters))
-        return None();
+static PyObject* fit(PyObject* self, PyObject* args){
+    PyObject *df_py, *centroids_py, *goal_py;
+    int d, N, k;
+    char *goal;
+    double **df_c, **A, **B;
 
-    vectors = Py_Arr_To_C(flat_vectors, rows, cols);
-    clusters = Py_Arr_To_C(flat_clusters, K, cols);
-    if (vectors == NULL || clusters == NULL)
-        return None();
+    PyArg_ParseTuple(args, "OOOii", &df_py, &centroids_py, &goal_py, &d, &k); 
 
-    res = fit_kmeans(vectors, clusters, K, rows, cols);
-    if (res == 1) {
-        free_Mem(vectors, rows);
-        free_Mem(clusters, K);
-        return None();
-    }
-    PyObject *py_clusters = C_Arr_To_Py(clusters, K, cols);
-    free_Mem(vectors, rows);
-    free_Mem(clusters, K);
-    return py_clusters;
+    goal = strtok(PyBytes_AS_STRING(
+               PyUnicode_AsEncodedString(
+               PyObject_Repr(goal_py), "utf-8", "~E~")), "'");
+
+    if(!strcmp(goal, "kmeans")) 
+        return kmeans(df_py, centroids_py, d);
+
+    N = PyList_Size(df_py);
+    A = malloc_matrix(N,N); 
+    B = malloc_matrix(N,N);
+    df_c = malloc_matrix(N, d);
+
+    set_data(df_c, df_py, N, d);
+    exe_goal(df_c, A, B, N, d, goal);
+    
+    df_py = PyList_New(N+(!strcmp(goal,"jacobi")?1:0)); /* for jacobi we need N+1 rows */
+
+    set_final_martix(df_py, df_c, A, B, N, k, goal);
+
+    free_matrix(A, N);
+    free_matrix(B, N);
+    free_matrix(df_c, N);
+    
+    return df_py;
 }
 
-/*
- * a generic function that receives the argument inputs of the Python functions and initializes
- * a corresponding C matrix containing the data.
- */
-static double** Prologue(PyObject *self, PyObject *args) {
-    PyObject *flat_vectors;
-    if (!PyArg_ParseTuple(args, "iiO", &global_rows, &global_cols, &flat_vectors))
-        return NULL;
-    return Py_Arr_To_C(flat_vectors, global_rows, global_cols);
-}
-
-/*
- * a generic function that receives the argument outputs of the C function and converts it into
- * a corresponding Python list containing the data. and as well frees memory allocation.
- */
-static PyObject* Epilogue(double** vectors, int rows, int cols) {
-    if (vectors == NULL){
-        free_Mem(vectors, rows);
-        return None();
-    }
-    PyObject *py_matrix = C_Arr_To_Py(vectors, rows, cols);
-    free_Mem(vectors, rows);
-    return py_matrix;
-}
-
-/*
- * Implements the spk algorithm
- * args: rows, cols - dimension on the data matrix
- *       vectors - a Python list of the data vectors
- * return: T matrix via the spk algorithm as a Python list
- *         k - the new vectors dimension
- * Python equivalent: spk
- */
-static PyObject* spk_capi(PyObject *self, PyObject *args) {
-    int k;
-    double** vectors = Prologue(self, args);
-    if (vectors == NULL)
-        return None();
-    vectors = spk(vectors, global_rows, global_cols, &k);
-    PyObject * python_val = Epilogue(vectors, global_rows, k);
-    return Py_BuildValue("iO", k, python_val);
-}
-
-/*
- * Computes the Weighted Adjacency Matrix of the data vectors
- * args: rows, cols - dimension on the data matrix
- *       vectors - a Python list of the data vectors
- * return: weighted adjacency matrix of the data vectors
- * Python equivalent: wam
- */
-static PyObject* wam_capi(PyObject *self, PyObject *args) {
-    double** vectors = Prologue(self, args);
-    if (vectors == NULL)
-        return None();
-    vectors = wam(vectors, global_rows, global_cols);
-    return Epilogue(vectors, global_rows, global_rows);
-}
-
-/*
- * Computes the Diagonal Degree Matrix of the data vectors
- * args: rows, cols - dimension on the data matrix
- *       vectors - a Python list of the data vectors
- * return: diagonal degree matrix of the data vectors
- * Python equivalent: ddg
- */
-static PyObject* ddg_capi(PyObject *self, PyObject *args) {
-    double** vectors = Prologue(self, args);
-    double** W;
-    if (vectors == NULL)
-        return None();
-    W = wam(vectors, global_rows, global_cols);
-    vectors = ddg(W, global_rows);
-    free_Mem(W, global_rows);
-    return Epilogue(vectors, global_rows, global_rows);
-}
-
-/*
- * Computes the Normalized Graph Laplacian of the data vectors
- * args: rows, cols - dimension on the data matrix
- *       vectors - a Python list of the data vectors
- * return: normalized graph Laplacian matrix of the data vectors
- * Python equivalent: lnorm
- */
-static PyObject* lnorm_capi(PyObject *self, PyObject *args) {
-    double** vectors = Prologue(self, args);
-    if (vectors == NULL)
-        return None();
-    vectors = L_norm(vectors, global_rows, global_cols);
-    return Epilogue(vectors, global_rows, global_rows);
-}
-
-/*
- * Implements the Jacobi algorithm of finding Eigenvalues and Eigenvectors
- * args: rows, cols - dimension on the data matrix
- *       vectors - a Python list of the data vectors
- * return: k-smallest eigenvalues
- *         matrix containing the first k eigenvectors corresponding to the eigenvalues
- */
-static PyObject* jacobi_capi(PyObject *self, PyObject *args) {
-    int i;
-    double** vectors = Prologue(self, args);
-    if (vectors == NULL)
-        return None();
-    vectors = jacobi(vectors, global_rows);
-
-    PyObject* py_mat = Epilogue(vectors, global_rows, global_rows);
-    PyObject* py_eigens = PyList_New(global_rows);
-    for (i = 0; i < global_rows; i++)
-        PyList_SetItem(py_eigens, i, PyFloat_FromDouble(eigen_values[i].val));
-    free(eigen_values);
-    return Py_BuildValue("OO", py_mat, py_eigens);
-}
-
-
-
-static PyMethodDef capiMethods[] = {
-        {"fit", (PyCFunction)kmeans_capi, METH_VARARGS, PyDoc_STR(" ")},
-        {"spk", (PyCFunction)spk_capi, METH_VARARGS, PyDoc_STR(" ")},
-        {"wam", (PyCFunction)wam_capi, METH_VARARGS, PyDoc_STR(" ")},
-        {"ddg", (PyCFunction)ddg_capi, METH_VARARGS, PyDoc_STR(" ")},
-        {"lnorm", (PyCFunction)lnorm_capi, METH_VARARGS, PyDoc_STR(" ")},
-        {"jacobi", (PyCFunction)jacobi_capi, METH_VARARGS, PyDoc_STR(" ")},
+/* C-Python API */
+static PyMethodDef spkmeansMethods[] = {
+        {"fit", (PyCFunction) fit, METH_VARARGS, PyDoc_STR("C spkmeans algorithm")},
         {NULL, NULL, 0, NULL}
 };
-
-static struct PyModuleDef moduledef ={
-        PyModuleDef_HEAD_INIT,
-        "spkmeansmodule", /* name of module */
-        NULL,
-        -1,
-        capiMethods};
-
+static struct PyModuleDef moduledef = {
+        PyModuleDef_HEAD_INIT, "myspkmeanssp", NULL, -1, spkmeansMethods
+};
 PyMODINIT_FUNC
-PyInit_spkmeansmodule(void)
-{
-    return PyModule_Create(&moduledef);
+PyInit_myspkmeanssp(void){
+    PyObject *m;
+    m = PyModule_Create(&moduledef);
+    if(!m) return NULL;
+    return m;
 }
+
+
