@@ -63,43 +63,50 @@ int kMeans(int len, int in1, double **points, double **cent, int dim){
     return 0;
 }
 
-int check_euclidean_norm(double **newcent, double **cent_that_used, int dim, int in1){
+int check_euclidean_norm(double **centNew, double **cent_that_used, int dim, int in1){
     int i;
-    double e_norm;
-    for (i = 0; i < in1; i++){
-        e_norm = calc_euclidean_norm(newcent[i],cent_that_used[i],dim);
-        if (e_norm >= 0)
+    double e;
+    i = 0;
+    while (i < in1){
+        e = calc_euclidean_norm(centNew[i] , cent_that_used[i], dim);
+        if (e >= 0)
             return 0;
+        i++;
     }
     return 1;
 }
 
 
-int find_cluster(double **cent, double *Datapoint, int dim, int K){
-    int i, j, cluster;
-    double sum, min_clust;
-
-    cluster=0; 
-
-    min_clust = DBL_MAX;
-    for (i = 0; i < K; i++){
+int find_cluster(double **cent, double *data, int dim, int K){
+    int i, j, ret;
+    double sum, min;
+    ret=0; 
+    min = DBL_MAX;
+    i = 0;
+    while (i < K)
+    {
         sum = 0;
         for (j = 0; j < dim; j++)
-            sum += pow((Datapoint[j] - cent[i][j]), 2);
-        if (min_clust > sum){
-            min_clust = sum;
-            cluster = i + 1;
+            sum = pow((data[j] - cent[i][j]), 2) + sum;
+        if (min > sum){
+            ret = i + 1;
+            min = sum;
         }
+        i++;
     }
-
-    return cluster;
+    return ret;
 }
 
-void update_old_centroids(double **newcent, double **cent_that_used, int dim, int K){
+void update_old_centroids(double **centNew, double **cent_that_used, int dim, int K){
     int i, j;
-    for (i = 0; i < K; i++){
-        for (j = 0; j < dim; j++)
-            cent_that_used[i][j] = newcent[i][j];
-        
+    i = 0;
+    while (i < K)
+    {
+        j = 0;
+        while (j < dim){
+            cent_that_used[i][j] = centNew[i][j];
+            j++;
+        }
+        i++;
     }
 }
