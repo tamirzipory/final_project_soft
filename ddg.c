@@ -1,7 +1,7 @@
-double **diagMat(double **mat, int len){
+double **diag_mat(double **mat, int len){
     int i, j;
     double sum;
-    double **diag = mat_alloc_by_row_col(len, len);
+    double **diag = matrix_allocation(len, len);
     if (diag == NULL)
         return NULL;
     sum = 0, i = 0;
