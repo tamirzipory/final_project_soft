@@ -1,15 +1,41 @@
-#ifndef KMEANS_H_
-#define KMEANS_H_
+#ifndef SPKMEANS_H_
+#define SPKMEANS_H_
 
 
-/* declaring variables */
-int k, max_iter, iterates, *to_avg, points_counter, cluster_length, assign_to_cluster;
-int i, j, m, p, t, is_norm;
-double *centroids, *datapoints, *cluster_points, temp_point, min_dist, distance, normDelta, eps;
+typedef struct Matrix {
+    int N;
+    int M;
+    double * nodes;
+    double ** edges;
+} Matrix;
 
-/* declaring functions */
 
-void freePointers();
-double* Kmeans(int k, int n, int d, int max_iter, double epss, double* dp, double *c);
+
+/* declareing variables */
+int i, j, k, l, ind, d, n, maxRotations, rotation, m_i, m_j, argmax, goal_int, cc;
+Matrix graph, lnorm, eigenVectors, p, A_t, matrix, U, T, wam, ddg, result, lnorm, jacobi;
+FILE * ifp;
+double offA, offA_tag, maxValue, s, **A, e, theta, abs_theta, t, c, max, tmp;
+double * tmpList;
+char *goal, *filename, *file_name;
+
+/* declareing functions */
+Matrix MatOutput(int goal, char *file_name, int n, int d);
+double * ReadObservations(char* file_name, int n, int d);
+Matrix Wam(char* file_name, int n, int d);
+Matrix Ddg(char* file_name, int n, int d);
+Matrix Lnorm(char* file_name, int n, int d);
+Matrix allocate_matrix(int n, int m);
+void free_matrix(Matrix A);
+void fillWithZeros(Matrix *A);
+void copyMatrix(Matrix *A, Matrix *B);
+void multiply(Matrix *A, Matrix *B);
+Matrix transpose(Matrix A);
+Matrix Jacobi(Matrix lnorm);
+Matrix Eigengap(char* file_name, int n, int d);
+double Norm(double number);
+void freeObservations(void);
+
+double * observations;
 
 #endif
