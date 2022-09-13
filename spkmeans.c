@@ -388,7 +388,10 @@ double calc_off_diag(int N, double **A){
     for (i = 0; i < N; i++){
         for (j = 0; j < N; j++)
             /*Sum square of all off-diagonal elements in the Matrix*/
-            off_A_squared += (i == j) ? 0 : (A[i][j] * A[i][j]);
+            if(i != j){
+                off_A_squared = off_A_squared+(A[i][j] * A[i][j]);
+            }
+            
         
     }
     return off_A_squared;
@@ -426,6 +429,24 @@ void find_Aij(int N, double **A, int *i_pointer, int *j_pointer){
     }
 }
 
+double calc_theta(double** mat, int i, int j){
+    return (mat[j][j] - mat[i][i]) / (2 * mat[i][j]);
+}
+
+double calc_t(int sign, double theta){
+    return (sign) / (fabs(theta) + sqrt((theta * theta) + 1));
+}
+
+double divide(double t){
+    return (1) / (sqrt(1 + (t * t)));
+}
+
+double calc_s(double t){
+    return t / sqrt(1 + (t * t));
+}
+
+
+
 /* Receives matrix A, i,j- the location of the pivot
  * Calculates c,s,t according to the given formulas */
 void find_c_s_t(double **A, int i, int j, double *cPointer, double *sPointer){
@@ -438,11 +459,11 @@ void find_c_s_t(double **A, int i, int j, double *cPointer, double *sPointer){
         return;
     }
 
-    theta = (A[j][j] - A[i][i]) / (2 * A[i][j]);
+    theta = calc_theta(A, i, j);
     if (theta < 0)
         signTheta = -1;
-    t = (signTheta) / (fabs(theta) + sqrt((theta * theta) + 1));
-    *cPointer = (1) / (sqrt(1 + (t * t)));
+    t = calc_t(signTheta, theta);
+    *cPointer = divide(t);
     *sPointer = t / sqrt(1 + (t * t));
 }
 
@@ -538,8 +559,7 @@ int find_N_D(FILE *ifp, int find_who){
  * Updates dest_mat to be a copy of src_mat */
 void matrix_copy(int num_rows, int num_cols, double **dest_mat, double **src_mat){
     int i, j;
-    for (i = 0; i < num_rows; i++)
-    {
+    for (i = 0; i < num_rows; i++){
         for (j = 0; j < num_cols; j++)
             dest_mat[i][j] = src_mat[i][j];
         
@@ -551,13 +571,10 @@ void matrix_copy(int num_rows, int num_cols, double **dest_mat, double **src_mat
 void set_input(FILE *ifp, double **data_input, int num_rows, int num_cols){
     int i, j;
     double curr_value;
-    i = 0;
-    j = 0;
+    i = 0, j = 0;
 
-    for (i = 0; i < num_rows; i++)
-    {
-        for (j = 0; j < num_cols; j++)
-        {
+    for (i = 0; i < num_rows; i++){
+        for (j = 0; j < num_cols; j++){
             if (fscanf(ifp, "%lf", &curr_value) == 1)
                 data_input[i][j] = curr_value;
             else
@@ -574,7 +591,6 @@ void free_memory(double **mat_to_free, int num_rows){
     int i;
     for (i = 0; i < num_rows; i++)
         free(mat_to_free[i]);
-    
     free(mat_to_free);
 }
 
@@ -624,21 +640,21 @@ void print_result(double **mat, int num_rows, int num_cols, enum Goal goal)
 double **run_goal(enum Goal goal, double **data_input, int N, int D, int *K){
     double **data_output, **wam_matrix, **ddg_matrix, **lnorm_matrix;
 
-    if (goal == JACOBI){
+    if (goal == 4){
         data_output = jacobi_algo(N, data_input);
         return data_output;
     }
 
     /* Run WAM*/
     data_output = adjacency_matrix(data_input, D, N);
-    if (goal == WAM || data_output == NULL)
+    if (goal == 1 || data_output == NULL)
         return data_output;
 
     wam_matrix = data_output;
 
     /* Run DDG*/
     data_output = diagonal_matrix(wam_matrix, N);
-    if (data_output == NULL || goal == DDG){
+    if (data_output == NULL || goal == 2){
         free_memory(wam_matrix, N);
         return data_output;
     }
@@ -649,7 +665,7 @@ double **run_goal(enum Goal goal, double **data_input, int N, int D, int *K){
     data_output = laplacian_matrix(ddg_matrix, wam_matrix, N);
     free_memory(wam_matrix, N);
     free_memory(ddg_matrix, N);
-    if (data_output == NULL || goal == LNORM)
+    if (data_output == NULL || goal == 3)
         return data_output;
 
     lnorm_matrix = data_output;
@@ -682,17 +698,17 @@ int main(int argc, char *argv[]){
         goal = lnorm_g;
     if (!strcmp("jacobi", argv[1]))
         goal = jacobi_g;
-    msg_and_exit(INVALID_TYPE, goal == 0);
+    msg_and_exit(0, goal == 0);
 
     file_name = argv[2];
     ifp = fopen(file_name, "r");
-    msg_and_exit(ERROR_TYPE, ifp == NULL);
-    N = find_N_D(ifp, FIND_N);
-    D = find_N_D(ifp, FIND_D);
+    msg_and_exit(1, ifp == NULL);
+    N = find_N_D(ifp, 1);
+    D = find_N_D(ifp, 2);
 
     /* Creates matrix for input*/
     data_input = matrix_allocation(N, D);
-    msg_and_exit(ERROR_TYPE, data_input == NULL);
+    msg_and_exit(1, data_input == NULL);
 
     /* Sets the N points/symmetric matrix in data_input*/
     set_input(ifp, data_input, N, D);
@@ -701,7 +717,7 @@ int main(int argc, char *argv[]){
     data_output = run_goal(goal, data_input, N, D, &K);
     if (data_output == NULL){ /* An error has occurred*/
         free_memory(data_input, N);
-        msg_and_exit(ERROR_TYPE, 1);
+        msg_and_exit(1, 1);
     }
 
     print_result(data_output, N, N, goal);
