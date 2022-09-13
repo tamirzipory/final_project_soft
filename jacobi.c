@@ -53,39 +53,41 @@ double **calc_jacob(int len_mat, double **A){
 
 void calc_A1(int len_mat, double **A, double d1, double d2, int i, int j, int *ret){
     int r;
-    double **row_col_i_j = matrix_allocation(2, len_mat);
-    if (NULL == row_col_i_j){
+    double **rows_cols = matrix_allocation(2, len_mat);
+    if (NULL == rows_cols){
         *ret = 0;
         return;
     }
     r = 0;
     while(r < len_mat){
         if(r != i && r != j){
-            row_col_i_j[0][r] = d1 * A[r][i] - d2 * A[r][j];
-            row_col_i_j[1][r] = d1 * A[r][j] + d2 * A[r][i];
+            rows_cols[0][r] = d1 * A[r][i] - d2 * A[r][j];
+            rows_cols[1][r] = d1 * A[r][j] + d2 * A[r][i];
         }
-        else if((r == i)){
-            row_col_i_j[0][r] = d2 * d2 * A[j][j] + d1 *d1 * A[i][i] - 2 * d2 * d1 * A[i][j];
-            row_col_i_j[1][r] = 2 * d2 * d1 * A[i][j] + d2 * d2 * A[i][i] + d1 * d1 * A[j][j];
+        else if(r == i || r == j){
+            if(r == i)
+               rows_cols[0][r] = d2 * d2 * A[j][j] + d1 *d1 * A[i][i] - 2 * d2 * d1 * A[i][j];
+            if(r == j)
+               rows_cols[1][r] = 2 * d2 * d1 * A[i][j] + d2 * d2 * A[i][i] + d1 * d1 * A[j][j];
         }
         else {
-            row_col_i_j[0][r] = 0;
-            row_col_i_j[1][r] = 0;
+            rows_cols[0][r] = 0;
+            rows_cols[1][r] = 0;
         }
         r++;
     }
     r = 0;
     while(r < len_mat){
-        if (r != j && r != i){
-            A[r][i] = row_col_i_j[0][r]; 
+       if (r != i && r != j){
+            A[r][i] = rows_cols[0][r]; 
             A[i][r] = A[r][i];           
-            A[j][r] = row_col_i_j[1][r]; 
+            A[j][r] = rows_cols[1][r]; 
             A[r][j] = A[j][r];           
-        } 
-        r++;
+        }
+        r++; 
     }
-    A[i][j] = 0, A[j][i] = 0, A[i][i] = row_col_i_j[0][i], A[j][j] = row_col_i_j[1][j];
-    free_memory(row_col_i_j,2);
+    A[i][j] = 0, A[j][i] = 0, A[i][i] = rows_cols[0][i], A[j][j] = rows_cols[1][j];
+    free_memory(rows_cols,2);
     *ret = 1;
 }
 
