@@ -124,7 +124,6 @@ void get_mat_transe(double **mat, int N){
     }
 }
 
-/*calculate A tag according the file in the moudle*/
 void A_to_A_tag(int N, double **A, int *i, int *j){
     int in1, in2;
     double max = -DBL_MAX;
@@ -142,67 +141,51 @@ void A_to_A_tag(int N, double **A, int *i, int *j){
 }
 
 double calc_theta(double** mat, int i, int j){
-    double ret = (mat[j][j] - mat[i][i]) / (mat[i][j] * 2);
-    return ret;
+    return (mat[j][j] - mat[i][i]) / (2 * mat[i][j]);
 }
 
-double calc_t(int s, double t){
-    double ret = s / (sqrt((t * t) + 1 + fabs(t)));
-    return ret;
+double calc_t(int sign, double theta){
+    return (sign) / (fabs(theta) + sqrt((theta * theta) + 1));
 }
 
 double divide(double t){
-    double ret = 1 / (sqrt((t * t) + 1));
-    return ret;
+    return (1) / (sqrt(1 + (t * t)));
 }
 
 double calc_s(double t){
     return t / sqrt(1 + (t * t));
 }
 
-void get_params(double **A, int i, int j, double *p1, double *p2){
-    double th, t;
-    double sign = 1;
+
+
+/* Receives matrix A, i,j- the location of the pivot
+ * Calculates c,s,t according to the given formulas */
+void get_params(double **A, int i, int j, double *point_1, double *point_2){
+    double theta, t;
+    double signTheta = 1;
+
     if (A[i][j] == 0){
-        *p1 = 1;
-        *p2 = 0;
+        *point_1 = 1;
+        *point_2 = 0;
         return;
     }
-    th = calc_theta(A, i, j);
-    if (0 > th)
-        sign = -1;
-    t = calc_t(sign, th);
-    *p1 = divide(t);
-    *p2 = t / sqrt((t * t) + 1);
-}
-/*
-void calc_curr_P(int max_iter, double **the_p_mat, int i, int j, double d1, double d2){
-    int in1, in2;
-    in1 = 0;
-    while(in1 < max_iter){
-        in2 = 0;
-        while(in2 < max_iter){
-            if(in1 == in2){
-                if(in1 == i || in2 == j)
-                   the_p_mat[in1][in2] = d1;
-                else the_p_mat[in1][in2] = 1;   
-            }
-            else if (in1 == j && in2 == i)
-                the_p_mat[in1][in2] = -d2;
-            else{
-                if(in1 == i && in2 == j)
-                    the_p_mat[in1][in2] = d2;
-                else the_p_mat[in1][in2] = 0;
-            }
-            in2++;
-        }
-        in1++;
-    }
-}
-*/
 
+    theta = calc_theta(A, i, j);
+    if (theta < 0)
+        signTheta = -1;
+    t = calc_t(signTheta, theta);
+    *point_1 = divide(t);
+    *point_2 = t / sqrt(1 + (t * t));
+}
+
+/* Receives matrix the_p_mat, N- number of rows/columns, i,j- the location of the pivot, and c,s
+ * Updates P according to the given instructions */
 void calc_curr_P(int max_iter, double **the_p_mat, int i, int j, double c, double s){
     int k, l;
+    /* P[i][i]=P[j][j]=c, P[i][j]=s, P[j][i]=-s 
+     * on diagonal= 1, else=0*/
+  
+
     for (k = 0; k < max_iter; ++k){
         for (l = 0; l < max_iter; ++l){
             if (k == l)
