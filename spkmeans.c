@@ -155,96 +155,75 @@ void print_result(double **mat, int rows, int cols, enum Goal target)
  * D- number of columns (or point's dimension) and a pointer to K
  * Returns corresponed matrix according to the given goal
  * If an error occured returns NULL*/
-double **run_goal(enum Goal goal, double **data, int N, int D, int *K){
-    double **data_output, **wam_matrix, **ddg_matrix, **lnorm_matrix;
-
-    if (goal == 4){
-        data_output = calc_jacob(N, data);
-        return data_output;
+double **run_goal(enum Goal target, double **data, int n1, int n2, int *n3){
+    double **ret;
+    double **mat_dd,**mat_wam, **mat_lnorm;
+    if (target == 4)
+        return calc_jacob(n1, data);
+    
+    ret = adjacency_matrix(data, n2, n1);
+    if (ret == NULL)
+        return NULL;
+    if(target == 1)
+        return ret;
+    mat_wam = ret;
+    ret = diagonal_matrix(mat_wam, n1);
+    if (target == 2 ||ret == NULL){
+        free_memory(mat_wam, n1);
+        return ret;
     }
+    mat_dd = ret;
+    ret = laplacian_matrix(mat_dd, mat_wam, n1);
+    free_memory(mat_wam, n1);
+    free_memory(mat_dd, n1);
 
-    /* Run WAM*/
-    data_output = adjacency_matrix(data, D, N);
-    if (goal == 1 || data_output == NULL)
-        return data_output;
-
-    wam_matrix = data_output;
-
-    /* Run DDG*/
-    data_output = diagonal_matrix(wam_matrix, N);
-    if (data_output == NULL || goal == 2){
-        free_memory(wam_matrix, N);
-        return data_output;
-    }
-
-    ddg_matrix = data_output;
-
-    /* Run LNORM*/
-    data_output = laplacian_matrix(ddg_matrix, wam_matrix, N);
-    free_memory(wam_matrix, N);
-    free_memory(ddg_matrix, N);
-    if (data_output == NULL || goal == 3)
-        return data_output;
-
-    lnorm_matrix = data_output;
-
-    /* run SPK*/
-    data_output = spk_algo(lnorm_matrix, N, K);
-    free_memory(lnorm_matrix, N);
-    return data_output;
+    if (target == 3 || ret == NULL)
+        return ret;
+    mat_lnorm = ret;
+    ret = spk_algo(mat_lnorm, n1, n3);
+    free_memory(mat_lnorm, n1);
+    return ret;
 }
 
 /* Receives k, goal and file_name from user
  * Calculates needed information from file and call run_goal, prints result at end*/
 int main(int argc, char *argv[]){
-    char *file_name;
-    int N, D, K;
-    double **data, **data_output;
+    double **data, **ret;
+    int n1, n2, n3;
     FILE *ifp;
-    enum Goal goal = 0;
-    K = 0;
-
-    /* invalid number of arguments*/
+    enum Goal target = 0;
+    n3 = 0;
     msg_and_exit(0, argc != 3);
 
-    /* set goal correct enum*/
-    if (!strcmp("wam", argv[1]))
-        goal = wam_g;
-    if (!strcmp("ddg", argv[1]))
-        goal = ddg_g;
-    if (!strcmp("lnorm", argv[1]))
-        goal = lnorm_g;
-    if (!strcmp("jacobi", argv[1]))
-        goal = jacobi_g;
-    msg_and_exit(0, goal == 0);
+    if (strcmp("wam", argv[1]) == 0)
+        target = wam_g;
+    else if (strcmp("ddg", argv[1]) == 0)
+        target = ddg_g;
+    else if (strcmp("lnorm", argv[1]) == 0)
+        target = lnorm_g;
+    else if (strcmp("jacobi", argv[1]) == 0)
+        target = jacobi_g;
+    msg_and_exit(0, 0 == target);
 
-    file_name = argv[2];
-    ifp = fopen(file_name, "r");
+    ifp = fopen(argv[2], "r");
     msg_and_exit(1, ifp == NULL);
-    N = get_n_d_parameters(ifp, 1);
-    D = get_n_d_parameters(ifp, 2);
-
-    /* Creates matrix for input*/
-    data = matrix_allocation(N, D);
+    n1 = get_n_d_parameters(ifp, 1);
+    n2 = get_n_d_parameters(ifp, 2);
+    data = matrix_allocation(n1, n2);
     msg_and_exit(1, data == NULL);
-
-    /* Sets the N points/symmetric matrix in data*/
-    set_input(ifp, data, N, D);
-
-    /* Sets the goal's result in data_output*/
-    data_output = run_goal(goal, data, N, D, &K);
-    if (data_output == NULL){ /* An error has occurred*/
-        free_memory(data, N);
+    set_input(ifp, data, n1, n2);
+    ret = run_goal(target, data, n1, n2, &n3);
+    if (NULL == ret){ 
+        free_memory(data, n1);
         msg_and_exit(1, 1);
     }
 
-    print_result(data_output, N, N, goal);
+    print_result(ret, n1, n1, target);
     printf("\n");
-    free_memory(data, N);
-    if (goal == jacobi_g)
-        free_memory(data_output, N + 1);
-    else
-        free_memory(data_output, N);
+    free_memory(data, n1);
+    if (jacobi_g != target)
+        free_memory(ret, n1);
+    else free_memory(ret, n1 + 1);
     fclose(ifp);
     exit(0);
 }
