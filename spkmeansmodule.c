@@ -1,120 +1,178 @@
-import spkmeansmodule
-import sys
-from sys import argv
-import numpy as np
-import pandas as pd
-import math
+#define PY_SSIZE_T_CLEAN
+#include <Python.h>
+#include "spkmeans.h"
 
-def kmeansPP(k, max_iter, eps, t_mat): # k++ algorithm
+double **pyToCmat(PyObject *mat, int x, int y){ /* convert python 2D list to C 2D array */
+    
+    double **res = mem2D(x, y);
+    int i, j;
+    
+    for (i = 0; i < x; i++){
+        for (j = 0; j < y; j++){
+            res[i][j] = PyFloat_AsDouble(PyList_GetItem(PyList_GetItem(mat, i), j)); /* retrieve value and change type */
+        }
+    }
+    
+    return res;
 
-    N = len(t_mat) #rows
-    dims = len(t_mat[0]) #columns
+}
 
-    #k-means++
-    data = t_mat
-    sum_dists = 0
-    i = 0
-    np.random.seed(0)
-    new_cent = np.random.randint(0, N) # choose first centroid randomly
-    dists_probs = np.full((2,N) , math.inf) # create distances and probabilities array
-    centroids = np.zeros((1,dims)) + data[new_cent] # create centroids array and insert first centroid 
-    indices = [0 for i in range(k)] 
-    indices[0] = new_cent # first indice in result list
-    while (i < k-1): # main loop
-        dists_probs[0] = np.minimum(dists_probs[0] , np.sum(np.power((data - centroids[i]) , 2) , axis = 1)) # keep min distance
-        sum_dists = np.sum(dists_probs[0] , axis = 0) # sum of distances from calculated centroid
-        np.true_divide(dists_probs[0] , sum_dists , out = dists_probs[1]) # point probability = divide distance from centroid by sum of distances
-        new_cent = np.random.choice(N , p = dists_probs[1]) # choose new index according to the probabilities
-        i += 1
-        indices[i] = (int(new_cent)) # add new index
-        centroids = np.vstack([centroids , data[new_cent]]) # add new centroid
-    return indices
+PyObject *cToPyMat(double **mat, int x, int y){ /* convert C 2D array to python 2D list */
 
-def normalize_u(u_mat): 
-    t_mat = u_mat
-    for i in range(len(u_mat)):
-        sum_j = 0
-        for j in range(len(u_mat[0])):
-            sum_j += (u_mat[i][j] ** 2)
-        for j in range(len(u_mat[0])):
-            if sum_j == 0:
-                t_mat[i][j] = 0
-            else:
-                t_mat[i][j] = u_mat[i][j] / (sum_j ** 0.5)
-    return t_mat
+    PyObject *res = PyList_New(x);
+    int i, j;
+    
+    for (i = 0; i < x; i++){
+        PyObject *row = PyList_New(y);
+        for (j = 0; j < y; j++){
+            PyList_SetItem(row, j, PyFloat_FromDouble(mat[i][j])); /* change type and insert */
+        }
+        PyList_SetItem(res, i, row);
+    }
+    
+    return res;
 
-def final_output(k, output_mat_c, goal): #final adjustments and printing
-    if goal == 5: # only for "spk" - retrieve k centroids and print k indices
-        init_centroids = kmeansPP(k , 300 , 0 , output_mat_c) # get initial k++ centroids
-        for ind in init_centroids: # cast to float for C api
-            ind = float(ind)   
-        centP = [str(a) for a in init_centroids] # for printing
-        print(','.join(centP)) #print indices from k++
-        output_mat_c = output_mat_c.tolist() # convert np.array to list for C-api
-        output_mat_c = spkmeansmodule.kmeansCapi(output_mat_c , init_centroids , k) #get final centroids from kmeans C   
-    # print output matrix by requested format   
-    new_res = [[0 for i in range(len(output_mat_c[0]))] for j in range(k)] 
-    for i in range(k): 
-        for j in range(len(output_mat_c[0])):
-            new_res[i][j] = output_mat_c[i][j] 
-            if j == len(output_mat_c[0]) - 1:
-                print(format(new_res[i][j], ".4f"))
-            else:
-                print(format(new_res[i][j], ".4f"), end = '')
-                print("," , end = '')
-    print("")  
+}
 
-def extract_from_file(file_name): # retrieve data points 
-    data_points = pd.read_csv(file_name, sep=",", header=None)
-    N = len(data_points)
-    dims = len(data_points.columns)
-    res = np.array(data_points)
-    res = res.tolist()
-    return res
 
-#checking arguments
-if len(argv) != 4: #check num of args 
-    print("Invalid Input!")
-    sys.exit(1)
-try:
-    k = int(argv[1])
-    if k < 0:
-        print("Invalid Input!")
-        sys.exit(1)
-except:
-    print("Invalid Input!")
-    sys.exit(1)
-goal = argv[2]
-if (goal!="spk") and (goal!="wam") and (goal!="ddg") and (goal!="lnorm") and (goal!="jacobi") :
-    print("Invalid Input!")
-    sys.exit(1)
+static PyObject *pyToCtoPy(PyObject *self, PyObject *args){ /* all goals except spk - one back and forth */
 
-file_name = argv[3]
+    double **outputC, **pointsMat;
+    int row, col;
+    int goal;
+    PyObject *dataPoints, *resPy;
 
-data_points = extract_from_file(file_name)
+    if (!PyArg_ParseTuple(args, "Oi", &dataPoints, &goal)){ /* assign args */
+        printf("Invalid Input C-api1!");
+        exit(1);
+    }
+    if ( (!PyList_Check(dataPoints)) || (!PyList_Check(PyList_GetItem(dataPoints, 0))) ){/* check args */
+        printf("Invalid Input C-api2!");
+        exit(1);
+    }
+    
+    row = (int)PyList_Size(dataPoints); /* get dimensions */
+    col = (int)PyList_Size(PyList_GetItem(dataPoints, 0));
+    pointsMat = pyToCmat(dataPoints, row, col); /* convert Py data points to C data points */
+    outputC = mainFuncCapi(pointsMat, goal, row, col); /* send to main func in C and receive requested output */
+    if (goal == 4){ /* 4 means "jacobi" */
+        resPy = cToPyMat(outputC, row + 1, row); /* +1 row for eigenvalues */
+    }
+    else{
+        resPy = cToPyMat(outputC, row, row);
+    }
 
-if goal == "spk":
-    goal = 5 # encoding goal to int
-    c_V_mat = spkmeansmodule.spkCapi(data_points) #receive jacobi's output
-    k_sortedV = spkmeansmodule.eigenGapCapi(c_V_mat) #receive k from heuristic and sorted V from jacobi [k, sortedV]
-    if k == 0: # obtain k from eigenGap heuristic, else k remains as given in input
-        k = k_sortedV[0]
-    eigen_vectors = k_sortedV[1]
-    eigen_vectors = eigen_vectors[1:] #leave only the vectors
-    if k >= len(eigen_vectors): # k >= N
-        print("Invalid Input!")
-        sys.exit(1)
-    else:
-        u_mat = np.array(eigen_vectors)
-        u_mat = np.delete(u_mat, np.s_[k:], 1) # take only first k eigen vectors
-        t_mat = normalize_u(u_mat)
-        final_output(k, t_mat, goal) # send T to next stages of the algorithm: k++ and kmeans
-else: #goal != spk 
-    # encoding goal to int
-    if goal == "wam": goal = 1
-    if goal == "ddg": goal = 2
-    if goal == "lnorm": goal = 3
-    if goal == "jacobi": goal = 4
-    c_output = spkmeansmodule.pyToCtoPy(data_points, goal) #main func will return wam/ddg/lnorm/jacobi output
-    k = len(c_output) # adjust k for printing dimensions
-    final_output(k, c_output, goal) # send for printing
+    free2D(pointsMat);
+    free2D(outputC);
+
+    return resPy;
+}
+
+static PyObject *spkCapi(PyObject *self, PyObject *args){ /* first back and forth for spk: data points ---> V matrix from jacobi */
+    
+    double **outputVmatC, **pointsMat;
+    int row, col;
+    PyObject *dataPoints, *resPyVmat;
+
+    if (!PyArg_ParseTuple(args, "O", &dataPoints)){ /* assign args */
+        printf("Invalid Input spk C-api1!");
+        exit(1);
+    }
+    if ( (!PyList_Check(dataPoints)) || (!PyList_Check(PyList_GetItem(dataPoints, 0))) ){ /* check args */
+        printf("Invalid Input  spk C-api2!");
+        exit(1);
+    }
+    
+    row = (int)PyList_Size(dataPoints); /* get dimensions */
+    col = (int)PyList_Size(PyList_GetItem(dataPoints, 0));
+    pointsMat = pyToCmat(dataPoints, row, col); /* convert Py data points to C data points */
+    outputVmatC = mainFuncCapi(pointsMat, 5, row, col); /* send to main func in C and receive V matrix (goal 5 is "spk") */
+    resPyVmat = cToPyMat(outputVmatC, row + 1, row); /* convert back to python */
+
+    free2D(pointsMat);
+    free2D(outputVmatC);
+
+    return resPyVmat; /* send V matrix to Py - next module func recieves T matrix and k indices from kmeans++ */
+}
+
+static PyObject *eigenGapCapi(PyObject *self, PyObject *args){ /* returns k (eigen heuristic) + sorted V matrix */
+
+    double **outputSortedVmatC, **inputC_V_mat;
+    int row, col, k;
+    PyObject *inputPy_V_mat, *resPySortedVmat;
+
+    if (!PyArg_ParseTuple(args, "O", &inputPy_V_mat)){ /* assign args */
+        printf("Invalid Input eigenGap C-api1!");
+        exit(1);
+    }
+    if ( (!PyList_Check(inputPy_V_mat)) || (!PyList_Check(PyList_GetItem(inputPy_V_mat, 0))) ){ /* check args */
+        printf("Invalid Input eigenGap C-api2!");
+        exit(1);
+    }
+
+    row = (int)PyList_Size(inputPy_V_mat); /* get dimensions */
+    col = (int)PyList_Size(PyList_GetItem(inputPy_V_mat, 0));
+    inputC_V_mat = pyToCmat(inputPy_V_mat, row, col); /* convert V matrix to C */
+    outputSortedVmatC = sortMat(inputC_V_mat); /* sort V matrix by eigen values */
+    resPySortedVmat = cToPyMat(outputSortedVmatC, row, col); /* convert sorted V to Py */
+    k = eigenGap(outputSortedVmatC); /* obtain k by hueristic */
+
+    free2D(inputC_V_mat);
+    free2D(outputSortedVmatC);
+
+    return Py_BuildValue("(iO)" , k , resPySortedVmat); /* return k , sorted V matrix */
+
+}
+
+static PyObject *kmeansCapi(PyObject *self, PyObject *args){ /* second back and forth - T mat + k indices ---> k clusters */
+    
+    double **tMatC, **outputClustersC;
+    int *centroidsArrayC;
+    int row, col, k, i;
+    PyObject *tMatPy, *initCentroidsPy, *resClustersPy;
+
+    if (!PyArg_ParseTuple(args, "OOi", &tMatPy, &initCentroidsPy, &k)){ /* assign args */
+        printf("Invalid Input kmeans C-api1!");
+        exit(1);
+    }
+    if ( (!PyList_Check(tMatPy)) || (!PyList_Check(PyList_GetItem(tMatPy, 0))) || (!PyList_Check(initCentroidsPy)) ){ /* check args */
+        printf("Invalid Input  kmeans C-api2!");
+        exit(1);
+    }
+    row = (int)PyList_Size(tMatPy);
+    col = (int)PyList_Size(PyList_GetItem(tMatPy, 0));
+    tMatC = pyToCmat(tMatPy, row, col); /* convert T mat from Py to C */
+    centroidsArrayC = (int*)calloc(k, sizeof(int));
+    for (i = 0; i < k; i++){
+	centroidsArrayC[i] = (int)PyFloat_AsDouble(PyList_GetItem(initCentroidsPy, i));
+    }
+    outputClustersC = kmeans(tMatC, centroidsArrayC , row, col); /* send T matrix to main func to calculate k clusters in kmeans algo */
+    resClustersPy = cToPyMat(outputClustersC, k, col); /* receive clusters from C */
+
+    free2D(outputClustersC);
+    return resClustersPy;
+}
+
+static PyMethodDef capiMethods[] = { /* an array of the module methods */ 
+    {"pyToCtoPy", (PyCFunction)pyToCtoPy, METH_VARARGS, PyDoc_STR("receive input from Py and outputs C to Py")},
+    {"spkCapi", (PyCFunction)spkCapi, METH_VARARGS, PyDoc_STR("first back and forth - data points ---> V matrix")}, 
+    {"eigenGapCapi", (PyCFunction)eigenGapCapi, METH_VARARGS, PyDoc_STR("returns k (eigen heuristic) + sorted V matrix")},
+    {"kmeansCapi", (PyCFunction)kmeansCapi, METH_VARARGS, PyDoc_STR("second back and forth - T mat + k indices ---> k clusters")},
+    {NULL, NULL, 0, NULL} 
+};
+
+static struct PyModuleDef moduledef = {
+    PyModuleDef_HEAD_INIT, "spkmeansmodule", "spkmeans module", -1, capiMethods
+};
+
+PyMODINIT_FUNC PyInit_spkmeansmodule(void)
+{
+    PyObject *m;
+
+    m = PyModule_Create(&moduledef);
+    if (!m)
+    {
+        return NULL;
+    }
+    return m;
+}
