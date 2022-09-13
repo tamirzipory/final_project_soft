@@ -18,8 +18,6 @@
 #define INVALID_TYPE 0
 #define ERROR_TYPE 1
 #define EPSILON_JACOBI 0.00001
-#define MAX_ITER_JACOBI 100
-#define EPSILON_KMEANS 0
 #define MAX_ITER_KMEANS 300
 #define WAM 1
 #define DDG 2
@@ -46,8 +44,8 @@ double **laplacian_matrix(double **diag_mat, double **adj_mat, int N);
 void cal_D12(double **diag_mat, int N);
 double **matrix_allocation(int num_rows, int num_cols);
 double **calc_mul(int N, double **A, double **B);
-void calc_sub(int N, double **A, double **B);
-double **I_matrix(int N);
+void sab_matrix(int N, double **A, double **B);
+double **calc_id_mat(int N);
 double **spk_algo(double **lnorm, int N, int *K);
 double **sort_matrix_values(double **mat, int N);
 void eigengap_heuristic(double *eigenvalues, int N, int *K);
@@ -57,18 +55,18 @@ double **set_T(double **U, int N, int K);
 double **run_goal(enum Goal goal, double **data_input, int N, int D, int *K);
 void print_result(double **mat, int num_rows, int num_cols, enum Goal goal);
 void msg_and_exit(int error_type, int is_error);
-int find_N_D(FILE *ifp, int find_who);
+int get_n_d_parameters(FILE *ifp, int find_who);
 void set_input(FILE *ifp, double **data_input, int num_rows, int num_cols);
 void free_memory(double **ArrayToFree, int num_rows);
 
 /* (spkmeans.c) (spkmeans.c) Jacobi's functions*/
-double **jacobi_algo(int N, double **A);
+double **calc_jacob(int N, double **A);
 void matrix_copy(int num_rows, int num_cols, double **dest_mat, double **src_mat);
-void find_Aij(int N, double **A, int *i_pointer, int *j_pointer);
-void find_c_s_t(double **A, int i, int j, double *cPointer, double *sPointer);
+void A_to_A_tag(int N, double **A, int *i_pointer, int *j_pointer);
+void get_params(double **A, int i, int j, double *cPointer, double *sPointer);
 void calc_curr_P(int N, double **curr_P, int i, int j, double c, double s);
 void get_eigenvalues_from_A1(double *eigenvalues, int N, double **A1);
-void transpose(double **mat, int N);
+void get_mat_transe(double **mat, int N);
 double **jacobi_eigen_merge(int N, double *eigenValues, double **eigenVectors);
 void calc_A1(int N, double **A, double c, double s, int i, int j, int *return_value);
 double calc_off_diag(int N, double **A);
