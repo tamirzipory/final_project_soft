@@ -5,57 +5,45 @@
  * Returns correspond matrix according to given goal*/
 static PyObject *fit(PyObject *self, PyObject *args)
 {
-    PyObject *Datapoints_PyObject;
-    PyObject *Centroids_PyObject;
-    PyObject *current_datapoint;
-    PyObject *current_double;
-    PyObject *returned_result;
-    PyObject *current_vector;
-    PyObject *current_centroid;
+    PyObject *Datapoints_PyObject, *Centroids_PyObject, *current_datapoint, *current_double, *returned_result, *current_vector, *current_centroid;
 
-    int N, K, D, i, j, rows, cols, cols_allocation, return_value;
+    int len, K, D, i, j, rows, cols, cols_allocation, return_value;
     double **Datapoints, **Centroids, **goal_result;
     enum Goal goal;
+    current_centroid=NULL, Centroids=NULL;
     
-    /* args= N, K, D, Datapoints/matrix, goal, Centroids*/
-    /* (IF: Goal= wam, ddg, lnorm, jacobi, spk(1)): args= N, K, D, Datapoints/matrix, goal */
-    /* (IF: Goal= spk(2)): args= N, K, D, Datapoints/matrix, goal, Centroids*/
-    /* Receiving args from Python program*/
-    if (!PyArg_ParseTuple(args, "iiiOiO", &N, &K, &D, &Datapoints_PyObject, &goal, &Centroids_PyObject))
-    {
-        PyErr_SetString(PyExc_RuntimeError, ERROR);
+
+    if (!PyArg_ParseTuple(args, "iiiOiO", &len, &K, &D, &Datapoints_PyObject, &goal, &Centroids_PyObject)){
+        PyErr_SetString(PyExc_RuntimeError, "An Error Has Occurred");
         return NULL;
     }
 
     cols_allocation=D;
     /* Only in spk-ex2 (when we return to fit in the second time), Datapoints need to have D+1 cols*/
-    if(goal==SPK_EX2)
+    if(goal==6)
         cols_allocation=D+1;
 
     /* Set up Datapoints and Centroids's matrix*/
-    Datapoints = matrix_allocation(N, cols_allocation);
-    if (Datapoints == NULL)
-    {
-        PyErr_SetString(PyExc_RuntimeError, ERROR);
+    Datapoints = matrix_allocation(len, cols_allocation);
+    if (Datapoints == NULL){
+        /*I dont know if we only need to return NULL, but my friends that we help them say that it's reccomend*/
+        PyErr_SetString(PyExc_RuntimeError, "An Error Has Occurred");
         return NULL;
     }
 
-    current_centroid=NULL;
-    Centroids=NULL;
-    /* Only in spk-ex2: sets Centroids*/
-    if(goal == SPK_EX2)
-    {
+    
+   
+    if(goal == 6){
         Centroids = matrix_allocation(K, cols_allocation);
-        if (Centroids == NULL)
-        {
-            free_memory(Datapoints, N);
-            PyErr_SetString(PyExc_RuntimeError, ERROR);
+        if (Centroids == NULL){
+            free_memory(Datapoints, len);
+            PyErr_SetString(PyExc_RuntimeError, "An Error Has Occurred");
             return NULL;
         }
     }
     
     /* Fill matrix values as given list from python*/
-    for (i = 0; i < N; i++)
+    for (i = 0; i < len; i++)
     {
         current_datapoint = PyList_GetItem(Datapoints_PyObject, i);
         if (i < K && goal == SPK_EX2)
@@ -86,12 +74,11 @@ static PyObject *fit(PyObject *self, PyObject *args)
 
     /* If goal is spk_ex2 (spk second run) run kMeans from ex2 else- goal is wam, ddg, lnorm or spk (first run)- use run_goal function*/
     if (goal == 6){
-        return_value = kMeans(N, K, Datapoints, Centroids, D);
-        if (return_value == FAIL)
-        {
-            free_memory(Datapoints,N);
+        return_value = kMeans(len, K, Datapoints, Centroids, D);
+        if (return_value == -1){
+            free_memory(Datapoints,len);
             free_memory(Centroids,K);
-            PyErr_SetString(PyExc_RuntimeError, ERROR);
+            PyErr_SetString(PyExc_RuntimeError, "An Error Has Occurred");
             return NULL;
         }
         goal_result = Centroids;
@@ -100,15 +87,15 @@ static PyObject *fit(PyObject *self, PyObject *args)
     }
     else
     {
-        goal_result = run_goal(goal, Datapoints, N, D, &K);
+        goal_result = run_goal(goal, Datapoints, len, D, &K);
         if (goal_result == NULL){
-            free_memory(Datapoints, N);
-            PyErr_SetString(PyExc_RuntimeError, ERROR);
+            free_memory(Datapoints, len);
+            PyErr_SetString(PyExc_RuntimeError, "An Error Has Occurred");
             return NULL;
         }
-        rows = (goal == JACOBI) ? (N + 1) : N; /*Jacobi needs N+1 rows*/
-        cols=N; /* In wam,ddg,lnorm,jacobi*/
-        if(goal==SPK)
+        rows = (goal == 4) ? (N + 1) : len; /*Jacobi needs N+1 rows*/
+        cols=len; /* In wam,ddg,lnorm,jacobi*/
+        if(goal==5)
             cols=K; /* In spk (first run)- T's dimesnions are N*K (updated/original k) */
     }
 
@@ -121,7 +108,7 @@ static PyObject *fit(PyObject *self, PyObject *args)
         PyList_SetItem(returned_result, i, Py_BuildValue("O", current_vector));
     }
 
-    free_memory(Datapoints, N);
+    free_memory(Datapoints, len);
     free_memory(goal_result, rows);
 
     return returned_result;
