@@ -1184,5 +1184,6 @@ int main(int argc, char *argv[])
     {
         assertmsg(0 != 0);
     }
+    printf("\n");
     return 0;
 }
