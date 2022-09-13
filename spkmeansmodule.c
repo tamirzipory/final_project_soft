@@ -1,365 +1,537 @@
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
+#include <math.h>
 #include "spkmeans.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <assert.h>
+#include <string.h>
 
-/*declarations - spkmeansmodule*/
-matrix *parse_python_2Dlist_to_matrix(PyObject *unparsed_matrix, int rows, int cols);
-PyObject *pack_matrix(matrix *mat);
-PyObject *calculate_matrix(PyObject *unparsed_data_points, int n, int d, matrix *(*f)(matrix *));
-static PyObject *calculate_matrix_capi(PyObject *self, PyObject *args);
-static PyObject *calculate_jacobi_capi(PyObject *self, PyObject *args);
-static PyObject *fit_kmeanspp_capi(PyObject *self, PyObject *args);
-static PyObject *fit_nsc_capi(PyObject *self, PyObject *args);
-
-/*implementation*/
-
-/*parses a PyObject into struct matrix. returns NULL if fails.*/
-matrix *parse_python_2Dlist_to_matrix(PyObject *unparsed_matrix, int rows, int cols)
+typedef struct eigenVector
 {
-    matrix *mat = NULL;
-    PyObject *row = NULL;
-    int i, j;
+    double eigenValue;
+    int index;
+} eigenVector;
 
-    /*create an empty c struct matrix*/
-    mat = create_matrix(rows, cols);
-    if (mat == NULL)
+/* Global variables */
+int clusters_num; /* make sure clusters_num == K*/
+int k;
+int vector_num;
+int vector_len;
+int max_iter;
+double **vector_list;
+double **weightedAdjMatrix;
+double **diagDegMatrix;
+double **LnormMatrix;
+double **VMat;
+double **UMat;
+double **TMat;
+double *eigenValues;
+int vector_num;
+int vector_len;
+eigenVector *eigenVectors;
+double **centroids;
+double **clusters;
+int *clustersindexes;
+
+static PyObject *fit(PyObject *self, PyObject *args)
+{
+    PyObject *centroids_list;
+    PyObject *origin_vector_list;
+    Py_ssize_t m;
+    Py_ssize_t n;
+    int max_iter;
+    Py_ssize_t i, j;
+
+    if (!PyArg_ParseTuple(args, "O!O!ii", &PyList_Type, &centroids_list, &PyList_Type, &origin_vector_list, &max_iter, &clusters_num))
     {
         return NULL;
     }
-    /*fills the matrix according to the unparsed_matrix from python*/
-    for (i = 0; i < rows; i++)
+
+    n = PyList_Size(PyList_GetItem(centroids_list, 0)); /* vector_len*/
+    vector_len = (int)n;
+
+    centroids = (double **)calloc(clusters_num, n * sizeof(double));
+    assertmsg(centroids != NULL);
+    for (i = 0; i < clusters_num; i++)
     {
-        row = PyList_GetItem(unparsed_matrix, i);
-        for (j = 0; j < cols; j++)
+        centroids[i] = (double *)calloc(n, sizeof(double));
+        assertmsg(centroids[i] != NULL);
+    }
+
+    for (i = 0; i < clusters_num; i++)
+    {
+        for (j = 0; j < n; j++)
         {
-            mat->values[i][j] = PyFloat_AsDouble(PyList_GetItem(row, j));
+            centroids[i][j] = PyFloat_AsDouble(PyList_GetItem(PyList_GetItem(centroids_list, i), j)); /*CONVERSION*/
         }
     }
 
-    return mat;
-}
+    m = PyList_Size(origin_vector_list); /* vector_num */
+    vector_num = (int)m;
 
-/*parses a struct matrix into PyObject. returns NULL if fails*/
-PyObject *pack_matrix(matrix *mat)
-{
-    int i, j;
-    PyObject *row = NULL;
-    PyObject *packed_matrix = PyList_New((Py_ssize_t)mat->rows);
-    if (packed_matrix == NULL)
+    vector_list = (double **)calloc(m, n * sizeof(double));
+    assertmsg(vector_list != NULL);
+    for (i = 0; i < m; i++)
     {
-        return NULL;
+        vector_list[i] = (double *)calloc(n, sizeof(double));
+        assertmsg(vector_list[i] != NULL);
     }
-    for (i = 0; i < mat->rows; i++)
+
+    for (i = 0; i < m; i++)
     {
-        row = PyList_New((Py_ssize_t)mat->columns);
-        if (row == NULL)
+        for (j = 0; j < n; j++)
         {
-            Py_XDECREF(packed_matrix);
-            return NULL;
+            vector_list[i][j] = PyFloat_AsDouble(PyList_GetItem(PyList_GetItem(origin_vector_list, i), j)); /*CONVERSION*/
         }
-        for (j = 0; j < mat->columns; j++)
+    } /* Now global vector_list is up to date */
+
+    calccentroids(max_iter);
+
+    PyObject *output_centroids = PyList_New(0);
+    for (i = 0; i < clusters_num; i++)
+    {
+        PyObject *centroid = PyList_New(0);
+
+        for (j = 0; j < n; j++)
         {
-            /*add coordinate to row*/
-            PyList_SetItem(row, j, PyFloat_FromDouble(mat->values[i][j]));
+            PyList_Append(centroid, Py_BuildValue("d", centroids[i][j]));
         }
-        /*add packed row to packed_matrix*/
-        PyList_SetItem(packed_matrix, i, row);
-    }
 
-    return packed_matrix;
+        PyList_Append(output_centroids, centroid);
+    }
+    freearray(vector_list, vector_num);
+    freearray(centroids, k);
+    return output_centroids;
 }
 
-/*  gets the unparsed data points from the relevant capi function
- *  and returns the packed result according to the passed function.
- *  @param unparsed_data_points the data points from the capi function.
- *  @param n the number of data points.
- *  @param d the number of coordinates of each point.
- *  @param f the desired function.
- *  @return struct matrix containing the data points. returns NULL on error.
- */
-PyObject *calculate_matrix(PyObject *unparsed_data_points, int n, int d, matrix *(*f)(matrix *))
+static PyObject *WeightedAdjacencyMatrix(PyObject *self, PyObject *args)
 {
-    PyObject *final_out_mat = NULL;
-    matrix *data_points = NULL, *out_mat = NULL;
+    PyObject *origin_vector_list;
+    Py_ssize_t m;
+    Py_ssize_t n;
+    Py_ssize_t i, j;
+    if (!PyArg_ParseTuple(args, "O!ii", &PyList_Type, &origin_vector_list, &vector_num, &vector_len))
+    {
+        return NULL;
+    }
 
-    /*parse data points*/
-    data_points = parse_python_2Dlist_to_matrix(unparsed_data_points, n, d);
-    if (data_points == NULL)
+    n = PyList_Size(PyList_GetItem(origin_vector_list, 0));
+    m = PyList_Size(origin_vector_list);
+    vector_list = (double **)calloc(m, n * sizeof(double));
+    assertmsg(vector_list != NULL);
+    for (i = 0; i < m; i++)
     {
-        return NULL;
+        vector_list[i] = (double *)calloc(n, sizeof(double));
+        assertmsg(vector_list[i] != NULL);
     }
-    /*calculate out matrix*/
-    out_mat = (*f)(data_points);
-    if (out_mat == NULL)
-    {
-        free_matrix(data_points);
-        return NULL;
-    }
-    /*pack matrix*/
-    final_out_mat = pack_matrix(out_mat);
-    if (final_out_mat == NULL)
-    {
-        free_matrix(data_points);
-        free_matrix(out_mat);
-        return NULL;
-    }
-    /*free memory*/
-    free_matrix(data_points);
-    free_matrix(out_mat);
 
-    return final_out_mat;
+    for (i = 0; i < m; i++)
+    {
+        for (j = 0; j < n; j++)
+        {
+            vector_list[i][j] = PyFloat_AsDouble(PyList_GetItem(PyList_GetItem(origin_vector_list, i), j)); /*CONVERSION*/
+        }
+    } /* Now global vector_list is up to date */
+
+    weightedAdjMat();
+
+    PyObject *output_matrix = PyList_New(0);
+    for (i = 0; i < vector_num; i++)
+    {
+        PyObject *centroid = PyList_New(0);
+
+        for (j = 0; j < vector_num; j++)
+        {
+            PyList_Append(centroid, Py_BuildValue("d", weightedAdjMatrix[i][j]));
+        }
+
+        PyList_Append(output_matrix, centroid);
+    }
+    freearray(vector_list, vector_num);
+    freearray(weightedAdjMatrix, vector_num);
+
+    return output_matrix;
 }
 
-/*python-c api*/
-
-/* This part actually defines the functions for the python module using a wrapper C API functions.
- * each function has input PyObject *args from Python.
- * The methods parse the PyObject *args and then call the right c function with the parsed parameters.
- * all functions return PyObject that contains the final result.
- */
-
-/*The method receives data points (two dimensional python list) and calculates the desired matrix.
-The method returns the matrix represented by two dimensional python list.
-recieves the parameters from the python code in the following order:
-1. the data points (as a two dimensional list).
-2. the number of rows (which is N)
-3. the number of columns (which is d)
-4. the desired matrix parameter name (given as a string)*/
-static PyObject *calculate_matrix_capi(PyObject *self, PyObject *args)
+static PyObject *DiagonalDegreeMatrix(PyObject *self, PyObject *args)
 {
-    PyObject *unparsed_data_points = NULL;
-    char *enum_str = NULL;
-    int n, d;
-    GOAL goal = invalid;
-
-    if (!PyArg_ParseTuple(args, "Oiis", &unparsed_data_points, &n, &d, &enum_str))
+    PyObject *origin_matrix;
+    Py_ssize_t m;
+    Py_ssize_t n;
+    Py_ssize_t i, j;
+    if (!PyArg_ParseTuple(args, "O!ii", &PyList_Type, &origin_matrix, &vector_num, &vector_len))
     {
         return NULL;
     }
-    /*converts given string to goal, supposed to be valid*/
-    goal = string_to_goal(enum_str);
 
-    /*returns the desired matrix*/
-    switch (goal)
+    n = PyList_Size(PyList_GetItem(origin_matrix, 0));
+    m = PyList_Size(origin_matrix);
+    weightedAdjMatrix = (double **)calloc(m, n * sizeof(double));
+    assertmsg(weightedAdjMatrix != NULL);
+    for (i = 0; i < m; i++)
     {
-    case wam:
-        return calculate_matrix(unparsed_data_points, n, d, calculate_w);
-        break;
-    case ddg:
-        return calculate_matrix(unparsed_data_points, n, d, calculate_d);
-        break;
-    case lnorm:
-        return calculate_matrix(unparsed_data_points, n, d, calculate_l);
-        break;
-    default:
-        return NULL;
-        break;
+        weightedAdjMatrix[i] = (double *)calloc(n, sizeof(double));
+        assert(weightedAdjMarixt[i] != NULL); /* notice assert not assertmsg because of compiler */
     }
+
+    for (i = 0; i < m; i++)
+    {
+        for (j = 0; j < n; j++)
+        {
+            weightedAdjMatrix[i][j] = PyFloat_AsDouble(PyList_GetItem(PyList_GetItem(origin_matrix, i), j)); /*CONVERSION*/
+        }
+    } /* Now global weightedAdjMat is up to date */
+
+    diagDegMat();
+
+    PyObject *output_matrix = PyList_New(0);
+    for (i = 0; i < vector_num; i++)
+    {
+        PyObject *centroid = PyList_New(0);
+
+        for (j = 0; j < vector_num; j++)
+        {
+            PyList_Append(centroid, Py_BuildValue("d", diagDegMatrix[i][j]));
+        }
+
+        PyList_Append(output_matrix, centroid);
+    }
+    freearray(weightedAdjMatrix, vector_num);
+    freearray(diagDegMatrix, vector_num);
+
+    return output_matrix;
 }
 
-/*The method receives data points (two dimensional python list) and calculates the eigenvalues and the eigenvectors.
-The method returns a tuple which contains (eigenvalues matrix, eigenvectors matrix).
-recieves the parameters from the python code in the following order:
-1. the data points (as a two dimensional list).
-2. the number of rows (which is N)
-3. the number of columns (which is d)*/
-static PyObject *calculate_jacobi_capi(PyObject *self, PyObject *args)
+static PyObject *NormalizedGraphLaplacian(PyObject *self, PyObject *args)
 {
-    PyObject *unparsed_data_points = NULL, *packed_eigenvalues = NULL, *packed_eigenvectors_mat = NULL, *out_data = NULL;
-    matrix *data_points = NULL;
-    eigen_data *jacobi_data = NULL;
-    int n, d;
+    PyObject *origin_vector_list;
+    Py_ssize_t m;
+    Py_ssize_t n;
+    Py_ssize_t i, j;
+    if (!PyArg_ParseTuple(args, "O!ii", &PyList_Type, &origin_vector_list, &vector_num, &vector_len))
+    {
+        return NULL;
+    }
 
-    if (!PyArg_ParseTuple(args, "Oii", &unparsed_data_points, &n, &d))
+    n = PyList_Size(PyList_GetItem(origin_vector_list, 0));
+    m = PyList_Size(origin_vector_list);
+    vector_list = (double **)calloc(m, n * sizeof(double));
+    assertmsg(vector_list != NULL);
+    for (i = 0; i < m; i++)
     {
-        return NULL;
+        vector_list[i] = (double *)calloc(n, sizeof(double));
+        assertmsg(vector_list[i] != NULL);
     }
-    /*parse data points*/
-    data_points = parse_python_2Dlist_to_matrix(unparsed_data_points, n, d);
-    if (data_points == NULL)
-    {
-        return NULL;
-    }
-    /*calculate jacobi data*/
-    jacobi_data = calculate_jacobi(data_points);
-    if (jacobi_data == NULL)
-    {
-        free_matrix(data_points);
-        return NULL;
-    }
-    /*pack jacobi data*/
-    /*pack eigenvalues and eigenvectors*/
-    packed_eigenvalues = pack_matrix(jacobi_data->eigenvalues);
-    if (packed_eigenvalues == NULL)
-    {
-        free_matrix(data_points);
-        free_eigen_data(jacobi_data);
-        return NULL;
-    }
-    packed_eigenvectors_mat = pack_matrix(jacobi_data->eigenvectors_mat);
-    if (packed_eigenvectors_mat == NULL)
-    {
-        Py_XDECREF(packed_eigenvalues);
-        free_matrix(data_points);
-        free_eigen_data(jacobi_data);
-        return NULL;
-    }
-    /*create a tuple containing the above*/
-    out_data = PyTuple_New(2);
-    if (out_data == NULL)
-    {
-        Py_XDECREF(packed_eigenvalues);
-        Py_XDECREF(packed_eigenvectors_mat);
-        free_matrix(data_points);
-        free_eigen_data(jacobi_data);
-        return NULL;
-    }
-    PyTuple_SetItem(out_data, 0, packed_eigenvalues);
-    PyTuple_SetItem(out_data, 1, packed_eigenvectors_mat);
 
-    /*free memory and return*/
-    free_matrix(data_points);
-    free_eigen_data(jacobi_data);
+    for (i = 0; i < m; i++)
+    {
+        for (j = 0; j < n; j++)
+        {
+            vector_list[i][j] = PyFloat_AsDouble(PyList_GetItem(PyList_GetItem(origin_vector_list, i), j)); /*CONVERSION*/
+        }
+    }
 
-    return out_data;
+    Lnorm();
+
+    PyObject *output_matrix = PyList_New(0);
+    for (i = 0; i < vector_num; i++)
+    {
+        PyObject *centroid = PyList_New(0);
+
+        for (j = 0; j < vector_num; j++)
+        {
+            PyList_Append(centroid, Py_BuildValue("d", LnormMatrix[i][j]));
+        }
+
+        PyList_Append(output_matrix, centroid);
+    }
+    freearray(vector_list, vector_num);
+    freearray(weightedAdjMatrix, vector_num);
+    freearray(diagDegMatrix, vector_num);
+    freearray(LnormMatrix, vector_num);
+
+    return output_matrix;
 }
 
-/*The method receives data points (two dimensional python list) and initial centroids and
-returns the final centroids after applying the kmeans++ algorithm.
-recieves the parameters from the python code in the following order:
-1. the data points (as a two dimensional list).
-2. the initial centroids (as a two dimensional list).
-3. n, the number of data points.
-4. d, the number of coordinates of each point.
-5. k, the number of clusters.
-6. max_iter.
-7. epsilon.*/
-static PyObject *fit_kmeanspp_capi(PyObject *self, PyObject *args)
+static PyObject *Jacobi(PyObject *self, PyObject *args)
 {
-    PyObject *unparsed_data_points = NULL, *unparsed_centroids = NULL, *packed_centroids = NULL;
-    matrix *data_points = NULL, *centroids = NULL, *final_centroids = NULL;
-    double eps;
-    int k, n, d, max_iter;
+    PyObject *origin_vector_list;
+    Py_ssize_t m;
+    Py_ssize_t n;
+    Py_ssize_t i, j;
+    double **A;
+    if (!PyArg_ParseTuple(args, "O!ii", &PyList_Type, &origin_vector_list, &vector_num, &vector_len))
+    {
+        return NULL;
+    }
 
-    if (!PyArg_ParseTuple(args, "OOiiiid", &unparsed_data_points, &unparsed_centroids, &n, &d, &k, &max_iter, &eps))
+    n = PyList_Size(PyList_GetItem(origin_vector_list, 0));
+    m = PyList_Size(origin_vector_list);
+    A = (double **)calloc(m, n * sizeof(double));
+    assertmsg(A != NULL);
+    for (i = 0; i < m; i++)
     {
-        return NULL;
+        A[i] = (double *)calloc(n, sizeof(double));
+        assertmsg(A[i] != NULL);
     }
-    /*parse data*/
-    data_points = parse_python_2Dlist_to_matrix(unparsed_data_points, n, d);
-    if (data_points == NULL)
-    {
-        return NULL;
-    }
-    centroids = parse_python_2Dlist_to_matrix(unparsed_centroids, k, d);
-    if (centroids == NULL)
-    {
-        free_matrix(data_points);
-        return NULL;
-    }
-    /*get the final centroids - final centroids and centroids are pointers to the same memory
-    if fit_kmeanspp_c does not return NULL!*/
-    final_centroids = fit_kmeanspp_c(data_points, centroids, max_iter, eps);
-    if (final_centroids == NULL)
-    {
-        free_matrix(centroids);
-        free_matrix(data_points);
-        return NULL;
-    }
-    /*pack centroids*/
-    packed_centroids = pack_matrix(final_centroids);
-    if (packed_centroids == NULL)
-    {
-        free_matrix(centroids);
-        free_matrix(data_points);
-        return NULL;
-    }
-    /*free memory - final centroids and centroids are pointers to the same memory!*/
-    free_matrix(data_points);
-    free_matrix(centroids);
 
-    return packed_centroids;
+    for (i = 0; i < m; i++)
+    {
+        for (j = 0; j < n; j++)
+        {
+            A[i][j] = PyFloat_AsDouble(PyList_GetItem(PyList_GetItem(origin_vector_list, i), j)); /*CONVERSION*/
+        }
+    }
+    /*A is transfered correctly as vector_list */
+
+    calcJacobi(A);
+
+    PyObject *output_values = PyList_New(0);
+
+    for (j = 0; j < vector_num; j++)
+    {
+        PyList_Append(output_values, Py_BuildValue("d", eigenValues[j]));
+    }
+
+    transpMat(VMat);
+    PyObject *output_vectors = PyList_New(0);
+    for (i = 0; i < vector_num; i++)
+    {
+        PyObject *centroid = PyList_New(0);
+
+        for (j = 0; j < vector_num; j++)
+        {
+            PyList_Append(centroid, Py_BuildValue("d", VMat[i][j]));
+        }
+
+        PyList_Append(output_vectors, centroid);
+    }
+
+    freearray(A, (int)m);
+    freearray(VMat, vector_num);
+    free(eigenValues);
+
+    return Py_BuildValue("OO", output_values, output_vectors);
 }
 
-/*The method receives data points (two dimensional python list) and initial centroids and
-returns the normilized final data points matrix (t matrix) according to the Normalized Spectral Clustering Algorithm.
-recieves the parameters from the python code in the following order:
-1. the data points (as a two dimensional list).
-2. n, the number of data points.
-3. d, the number of coordinates of each point.
-4. k, the desired number of clusters. if k=0, use heuristic to find k*/
-static PyObject *fit_nsc_capi(PyObject *self, PyObject *args)
+static PyObject *heuristic(PyObject *self, PyObject *args)
 {
-    PyObject *unparsed_data_points = NULL, *packed_t_matrix = NULL;
-    matrix *data_points = NULL, *t_mat = NULL;
-    int n, d, k;
+    int newK;
+    Py_ssize_t m;
+    Py_ssize_t n;
+    Py_ssize_t i, j;
+    PyObject *origin_vector_list;
+    if (!PyArg_ParseTuple(args, "O!ii", &PyList_Type, &origin_vector_list, &vector_num, &vector_len))
+    {
+        return NULL;
+    }
 
-    if (!PyArg_ParseTuple(args, "Oiii", &unparsed_data_points, &n, &d, &k))
+    n = PyList_Size(PyList_GetItem(origin_vector_list, 0));
+    m = PyList_Size(origin_vector_list);
+    vector_list = (double **)calloc(m, n * sizeof(double));
+    assertmsg(vector_list != NULL);
+    for (i = 0; i < m; i++)
     {
-        return NULL;
+        vector_list[i] = (double *)calloc(n, sizeof(double));
+        assertmsg(vector_list[i] != NULL);
     }
-    /*parse data*/
-    data_points = parse_python_2Dlist_to_matrix(unparsed_data_points, n, d);
-    if (data_points == NULL)
-    {
-        return NULL;
-    }
-    /*get the final data points (t matrix)*/
-    t_mat = fit_nsc_c(data_points, k);
-    if (t_mat == NULL)
-    {
-        free_matrix(data_points);
-        return NULL;
-    }
-    /*pack final data points (t matrix)*/
-    packed_t_matrix = pack_matrix(t_mat);
-    if (packed_t_matrix == NULL)
-    {
-        free_matrix(t_mat);
-        free_matrix(data_points);
-        return NULL;
-    }
-    /*free memory*/
-    free_matrix(data_points);
-    free_matrix(t_mat);
 
-    return packed_t_matrix;
+    for (i = 0; i < m; i++)
+    {
+        for (j = 0; j < n; j++)
+        {
+            vector_list[i][j] = PyFloat_AsDouble(PyList_GetItem(PyList_GetItem(origin_vector_list, i), j)); /*CONVERSION*/
+        }
+    }
+
+    newK = eigengapHeuristic();
+    freearray(vector_list, (int)m);
+    freearray(weightedAdjMatrix, vector_num);
+    freearray(diagDegMatrix, vector_num);
+    freearray(LnormMatrix, vector_num);
+    free(eigenVectors);
+    return Py_BuildValue("i", newK); /*K in python*/
 }
 
-/*This array tells Python what methods this module has.*/
-static PyMethodDef ckmeansMethods[] = {
-    {"calculate_matrix",
-     (PyCFunction)calculate_matrix_capi,
+static PyObject *fullSpectralPy(PyObject *self, PyObject *args)
+{
+    PyObject *origin_vector_list;
+    Py_ssize_t m;
+    Py_ssize_t n;
+    Py_ssize_t i, j;
+    if (!PyArg_ParseTuple(args, "iiO!", &k, &vector_num, &PyList_Type, &origin_vector_list))
+    {
+        return NULL;
+    }
+
+    clusters_num = k;
+    n = PyList_Size(PyList_GetItem(origin_vector_list, 0));
+    m = PyList_Size(origin_vector_list);
+    vector_len = (int)n;
+    vector_list = (double **)calloc(m, n * sizeof(double));
+    assertmsg(vector_list != NULL);
+    for (i = 0; i < m; i++)
+    {
+        vector_list[i] = (double *)calloc(n, sizeof(double));
+        assertmsg(vector_list[i] != NULL);
+    }
+
+    for (i = 0; i < m; i++)
+    {
+        for (j = 0; j < n; j++)
+        {
+            vector_list[i][j] = PyFloat_AsDouble(PyList_GetItem(PyList_GetItem(origin_vector_list, i), j)); /*CONVERSION*/
+        }
+    }
+
+    eigengapHeuristic();
+    createTMat();
+    freearray(vector_list, vector_num);
+    vector_list = UMat;
+
+    PyObject *output_matrix = PyList_New(0);
+    for (i = 0; i < vector_num; i++)
+    {
+        PyObject *centroid = PyList_New(0);
+
+        for (j = 0; j < k; j++)
+        {
+            PyList_Append(centroid, Py_BuildValue("d", vector_list[i][j]));
+        }
+
+        PyList_Append(output_matrix, centroid);
+    }
+    freearray(vector_list, vector_num);
+    freearray(weightedAdjMatrix, vector_num);
+    freearray(diagDegMatrix, vector_num);
+    freearray(LnormMatrix, vector_num);
+    freearray(VMat, vector_num);
+    free(eigenValues);
+    free(eigenVectors);
+
+    return output_matrix;
+}
+
+static PyObject *kmeans(PyObject *self, PyObject *args)
+{
+    PyObject *origin_vector_list;
+    PyObject *origin_final_centroids;
+    Py_ssize_t m;
+    Py_ssize_t n;
+    Py_ssize_t i, j;
+    int counter;
+    int isequal;
+    if (!PyArg_ParseTuple(args, "iiiO!O!", &clusters_num, &vector_num, &vector_len, &PyList_Type, &origin_vector_list, &PyList_Type, &origin_final_centroids))
+    {
+        return NULL;
+    }
+    k = clusters_num;
+    n = PyList_Size(PyList_GetItem(origin_vector_list, 0));
+    m = PyList_Size(origin_vector_list);
+    vector_len = (int)n;
+    vector_list = (double **)calloc(m, n * sizeof(double));
+    assertmsg(vector_list != NULL);
+    for (i = 0; i < m; i++)
+    {
+        vector_list[i] = (double *)calloc(n, sizeof(double));
+        assertmsg(vector_list[i] != NULL);
+    }
+    for (i = 0; i < m; i++)
+    {
+        for (j = 0; j < n; j++)
+        {
+            vector_list[i][j] = PyFloat_AsDouble(PyList_GetItem(PyList_GetItem(origin_vector_list, i), j)); /*CONVERSION*/
+        }
+    }
+    n = PyList_Size(PyList_GetItem(origin_final_centroids, 0));
+    m = PyList_Size(origin_final_centroids);
+    centroids = (double **)calloc(k, vector_len * sizeof(double));
+    assertmsg(centroids != NULL);
+    for (i = 0; i < k; i++)
+    {
+        centroids[i] = (double *)calloc(vector_len, sizeof(double));
+        assertmsg(centroids[i] != NULL);
+    }
+    for (i = 0; i < k; i++)
+    {
+        for (j = 0; j < vector_len; j++)
+        {
+            centroids[i][j] = PyFloat_AsDouble(PyList_GetItem(PyList_GetItem(origin_final_centroids, i), j));
+        }
+    }
+    clusters = (double **)calloc(k, sizeof(double *));
+    /*kmeans */
+    max_iter = 300;
+    counter = 0;
+    isequal = 1;
+    while (counter < max_iter && isequal == 1)
+    {
+        vector_to_cluster(k);
+        isequal = update_centroids();
+        counter++;
+    }
+    PyObject *output_matrix = PyList_New(0);
+    for (i = 0; i < k; i++)
+    {
+        PyObject *centroid = PyList_New(0);
+
+        for (j = 0; j < vector_len; j++)
+        {
+            PyList_Append(centroid, Py_BuildValue("d", centroids[i][j]));
+        }
+        PyList_Append(output_matrix, centroid);
+    }
+    freearray(vector_list, (int)m);
+    freearray(centroids, k);
+    freearray(clusters, k);
+    free(clustersindexes);
+    return output_matrix;
+}
+
+static PyMethodDef spkmeansMethods[] = {
+    {"fit",
+     (PyCFunction)fit,
      METH_VARARGS,
-     PyDoc_STR("The method receives data points (two dimensional python list) and calculates\
-     the desired matrix according to the given parameter. The method returns the matrix represented by two dimensional python list.")},
-    {"calculate_jacobi",
-     (PyCFunction)calculate_jacobi_capi,
+     PyDoc_STR("The final centroids produced by the Kmeans algorithm")},
+    {"WeightedAdjacencyMatrix",
+     (PyCFunction)WeightedAdjacencyMatrix,
      METH_VARARGS,
-     PyDoc_STR("The method receives data points (two dimensional python list) and calculates\
-     the eigenvalues and the eigenvectors. The method returns a tuple which contains (eigenvalues matrix, eigenvectors matrix).")},
-    {"fit_kmeanspp",
-     (PyCFunction)fit_kmeanspp_capi,
+     PyDoc_STR("A Weighted Adjacency Matrix (1.1.1)")},
+    {"DiagonalDegreeMatrix",
+     (PyCFunction)DiagonalDegreeMatrix,
      METH_VARARGS,
-     PyDoc_STR("The method recieves data points, centroids and other configuration parameters and applies the kmeans++ algorithm.\
-     Returns the final centroids.")},
-    {"fit_nsc",
-     (PyCFunction)fit_nsc_capi,
+     PyDoc_STR("A Diagonal Degree Matrix (1.1.2)")},
+    {"NormalizedGraphLaplacian",
+     (PyCFunction)NormalizedGraphLaplacian,
      METH_VARARGS,
-     PyDoc_STR("The method recieves data points, and returns the normilized final data points matrix \
-     according to the Normalized Spectral Clustering Algorithm.")},
+     PyDoc_STR("A Normalized Graph Laplacian Matrix (1.1.3)")},
+    {"Jacobi",
+     (PyCFunction)Jacobi,
+     METH_VARARGS,
+     PyDoc_STR("Calculation of eigenvalues and eigenvectors with the Jacobi algorithm (1.2.1)")},
+    {"heuristic",
+     (PyCFunction)heuristic,
+     METH_VARARGS,
+     PyDoc_STR("Calculation of K value with the eigengap heuristic method (1.3)")},
+    {"fullSpectralPy",
+     (PyCFunction)fullSpectralPy,
+     METH_VARARGS,
+     PyDoc_STR("Calculation of the first part of the whole process/algorithm")},
+    {"kmeans",
+     (PyCFunction)kmeans,
+     METH_VARARGS,
+     PyDoc_STR("Calculation of the second part of the whole process/algorithm")},
     {NULL, NULL, 0, NULL}};
 
-/*This initiates the module using the above definitions.*/
 static struct PyModuleDef moduledef = {
     PyModuleDef_HEAD_INIT,
-    "mykmeanssp", /* name of module */
+    "myspkmeans",
     NULL,
     -1,
-    ckmeansMethods};
+    spkmeansMethods};
 
-PyMODINIT_FUNC
-PyInit_mykmeanssp(void)
+PyMODINIT_FUNC PyInit_myspkmeans(void)
 {
     PyObject *m;
     m = PyModule_Create(&moduledef);
