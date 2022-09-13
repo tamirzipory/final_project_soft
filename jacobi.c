@@ -51,33 +51,40 @@ double **calc_jacob(int len_mat, double **A){
 }
 
 
-void calc_A1(int len_mat, double **A, double c, double s, int i, int j, int *ret){
+void calc_A1(int len_mat, double **A, double d1, double d2, int i, int j, int *ret){
     int r;
-  
     double **row_col_i_j = matrix_allocation(2, len_mat);
-
-    if (row_col_i_j == NULL){
+    if (NULL == row_col_i_j){
         *ret = 0;
         return;
     }
-
-    for (r = 0; r < len_mat; r++){
-       
-        row_col_i_j[0][r] = (r != i && r != j) ? (c * A[r][i] - s * A[r][j]) : ((r == i) ? (c * c * A[i][i] + s * s * A[j][j] - 2 * s * c * A[i][j]) : 0);
-        row_col_i_j[1][r] = (r != i && r != j) ? (c * A[r][j] + s * A[r][i]) : ((r == j) ? (s * s * A[i][i] + c * c * A[j][j] + 2 * s * c * A[i][j]) : 0);
+    r = 0;
+    while(r < len_mat){
+        if(r != i && r != j){
+            row_col_i_j[0][r] = d1 * A[r][i] - d2 * A[r][j];
+            row_col_i_j[1][r] = d1 * A[r][j] + d2 * A[r][i];
+        }
+        else if((r == i)){
+            row_col_i_j[0][r] = d2 * d2 * A[j][j] + d1 *d1 * A[i][i] - 2 * d2 * d1 * A[i][j];
+            row_col_i_j[1][r] = 2 * d2 * d1 * A[i][j] + d2 * d2 * A[i][i] + d1 * d1 * A[j][j];
+        }
+        else {
+            row_col_i_j[0][r] = 0;
+            row_col_i_j[1][r] = 0;
+        }
+        r++;
     }
-    /* updates*/
-    for (r = 0; r < len_mat; r++){
+    r = 0;
+    while(r < len_mat){
         if (r != j && r != i){
             A[r][i] = row_col_i_j[0][r]; 
             A[i][r] = A[r][i];           
             A[j][r] = row_col_i_j[1][r]; 
             A[r][j] = A[j][r];           
-        }
+        } 
+        r++;
     }
-
     A[i][j] = 0, A[j][i] = 0, A[i][i] = row_col_i_j[0][i], A[j][j] = row_col_i_j[1][j];
-
     free_memory(row_col_i_j,2);
     *ret = 1;
 }
