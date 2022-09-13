@@ -1,1563 +1,1095 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <assert.h>
-#include <string.h>
-#include <math.h>
-
 #include "spkmeans.h"
 
-/* for kmeans */
-int fitToKmeans(double *points, int n, int dim, int k, int maxIter, double *centroids, double *results);
-double euclid(double x[], double y[], int dim);
-int areCentroidsEqual(double *oldArr, double *newArr, int k, int dim);
-void reArrangePointsToClusters(double *points, int *pointToWhichCluster, double *centroidsArr, int n, int k, int dim);
-void reSelectCentroids(double *points, int *clustersCounters, int *pointToWhichCluster, double *centroidsArr, double *centroidsSum, int n, int k, int dim);
-void copyResults(double *newArr, int k, int dim, double *results);
-void freeArraysMemory(double *points, int *pointToWhichCluster, int *clustersCounters,
-                      double *centroidsOdd, double *centroidsEven,
-                      double *newCentroidAverageBeforeDivision);
-int kmeans(int n, int k, int dim, int maxIter, double *points, double *centroids, double *results);
-
-/* for SPkmeans */
-int atoi(const char *nptr);
-double atof(const char *nptr);
-void rewind(FILE *stream);
-char *strtok(char *str, const char *delim);
-double pow(double x, double y);
-int commasCount(char *p);
-double vectorNorm(double *vector, int dim);
-double euclideanDistance(double x[], double y[], int dim);
-void subTwoMatrices(double *matrix1, double *matrix2, int rowDim1, int colDim1, double *subMatrix);
-void multiTwoMatrices(double *matrix1, double *matrix2, int rowDim1, int colDim1, int colDim2, double *multiMatrix);
-void transpose(double *matrix, int rowDim, int colDim, double *transposeMatrix);
-void negativeSqrtMatrix(double *matrixD, int dim, double *negativeSqrtMatrix);
-void WeightedAdjacencyMatrixFromPoints(double *points, int n, int dim, double *weightedAdjancy);
-void diagonalMatrixFromW(double *weightedMatrix, int len, double *diagonal);
-void normalizedGraphLaplacian(double *Dsqrt, double *W, int dim, double *Lnorm);
-void renormalizingMatrixRow(double *matrixU, int rowDim, int colDim, double *renormalizedRowMatrix);
-double sumSquareOffDiagonalElem(double *matrix, int rowDim, int colDim);
-void IndexOfMaxValInMatrix(double *matrix, int rowDim, int colDim, int *indicesIandJ);
-void computingCandSforRotationMatrix(double *A, int rowDim, int *indices, double *valsCandS);
-void eigenvaluesSortingAndHeuristic(double *Atag, double *V, double **resultArray, int dim);
-int eigengapHeuristic(double *sortedEigenValues, int len);
-double **jacobiAlgorithm(double *A, int rowDim, int colDim, double **resultArray, const char *goal);
-void freeJacobiAlgorithm(int *indicesIandJ, double *valsCandS, double *Ptranspose, double *Vmulti, double *firstMulti, double *P, double *Atag);
-int callingJacobiFromGoal(double *symmetricMatrix, double *matrixU, const char *goal, int k, int n);
-void printFromGoal(double *matrix, int rowDim, int colDim);
-void stableSelectionSort(double *Array, int *indicesArray, int len);
-
-int g_np_context = 0;
-/*--------------- auxiliary functions ---------------*/
-
-/* return euclidean distance between points x, y in d dimension */
-double euclid(double x[], double y[], int dim)
+/*main*/
+int main(int argc, char *argv[])
 {
-    double sumUp = 0;
-    double res;
-    int coordinate;
+    char *input_file_name;
+    GOAL goal = invalid;
+    matrix *data_points = NULL;
+    matrix *out = NULL;
+    eigen_data *j_out = NULL;
 
-    double *coordinateSub = (double *)malloc(dim * sizeof(double));
-    if (!coordinateSub)
+    /*validate the input*/
+    argc = argc - 1;
+    if (argc != 2)
     {
-        printf("%s\n", "An Error Has Occured");
-        assert(0);
+        return invalid_input();
     }
 
-    for (coordinate = 0; coordinate < dim; coordinate++)
+    goal = string_to_goal(argv[1]);
+    input_file_name = argv[2];
+    data_points = read_input_file(input_file_name);
+    if (data_points == NULL)
     {
-        coordinateSub[coordinate] = x[coordinate] - y[coordinate];
-        /* pow(coordinateSub[coordinate], 2) */
-        coordinateSub[coordinate] = coordinateSub[coordinate] * coordinateSub[coordinate];
-        sumUp += coordinateSub[coordinate];
+        return error();
     }
-    /*res = sqrt(sumUp);*/
-    res = sumUp;
 
-    free(coordinateSub);
-
-    return res;
-}
-
-/* checking whether vectors are equal */
-int areCentroidsEqual(double *oldArr, double *newArr, int k, int dim)
-{
-    int centEqIndex;
-    int cord;
-
-    for (centEqIndex = 0; centEqIndex < k; centEqIndex++)
+    switch (goal)
     {
-        for (cord = 0; cord < dim; cord++)
+    case wam:
+        out = calculate_w(data_points);
+        break;
+    case ddg:
+        out = calculate_d(data_points);
+        break;
+    case lnorm:
+        out = calculate_l(data_points);
+        break;
+    case jacobi:
+        /*check that data_points is a square matrix*/
+        if (data_points->rows != data_points->columns)
         {
-            double sub = oldArr[centEqIndex * dim + cord] - newArr[centEqIndex * dim + cord];
-            if (sub > 0.00001 || sub < -0.00001)
-            {
-                return 0; /* false */
-            }
+            free_matrix(data_points);
+            return invalid_input();
         }
+        j_out = calculate_jacobi(data_points);
+        break;
+    default: /*goal wasn't valid*/
+        free_matrix(data_points);
+        return invalid_input();
     }
-	
-    return 1; /* true */
-}
 
-/* step 3 - re-arrange points to clusters, after we already have cluster coordinates
-    clustersCounters seems not needed */
-void reArrangePointsToClusters(double *points, int *pointToWhichCluster, double *centroidsArr, int n, int k, int dim)
-{
-    double distance;
-    double closestCentroid;
-    double minDistance;
-    int CurrPointIndex;
-    int centIndex1;
-    double disSubMin;
-
-    for (CurrPointIndex = 0; CurrPointIndex < n; CurrPointIndex++)
+    if (goal != jacobi)
     {
-        minDistance = euclid(&points[CurrPointIndex * dim], &centroidsArr[0], dim);
-        closestCentroid = 0;
-        for (centIndex1 = 0; centIndex1 < k; centIndex1++)
+        if (out == NULL) /*an error occurred in matrix calculation*/
         {
-            distance = euclid(&points[CurrPointIndex * dim], &centroidsArr[centIndex1 * dim], dim);
-            disSubMin = distance - minDistance;
-            if (disSubMin < 0)
-            {
-                minDistance = distance;
-                closestCentroid = centIndex1;
-            }
-        }
-        pointToWhichCluster[CurrPointIndex] = closestCentroid;
-    }
-}
-
-/* step 4 - re-select centroid coordinates, after we already have a full pointToWhich array
-    centroidsSum should be empty
-    clustersCounters should be empty */
-void reSelectCentroids(double *points, int *clustersCounters, int *pointToWhichCluster, double *clusterCoordinates, double *sumCoordinates, int n, int k, int dim)
-{
-    int pointIndex, coordinate, clusterIndex, index;
-
-    memset(sumCoordinates, 0, k * dim * sizeof(double));
-    memset(clustersCounters, 0, k * sizeof(int));
-
-    for (pointIndex = 0; pointIndex < n; pointIndex++)
-    {
-        index = pointToWhichCluster[pointIndex];
-
-        clustersCounters[index] = clustersCounters[index] + 1;
-
-        for (coordinate = 0; coordinate < dim; coordinate++)
-        {
-
-            sumCoordinates[index * dim + coordinate] =
-                sumCoordinates[index * dim + coordinate] + points[pointIndex * dim + coordinate];
-        }
-    }
-
-    for (clusterIndex = 0; clusterIndex < k; clusterIndex++)
-    {
-        for (coordinate = 0; coordinate < dim; coordinate++)
-        {
-
-            clusterCoordinates[clusterIndex * dim + coordinate] =
-                sumCoordinates[clusterIndex * dim + coordinate] / clustersCounters[clusterIndex];
-        }
-    }
-}
-
-/* copy centroids from newArr to results */
-void copyResults(double *newArr, int k, int dim, double *results)
-{
-    int resultsIndex = 0;
-    int cordIndex1;
-    int centIndex1;
-
-    for (centIndex1 = 0; centIndex1 < k; centIndex1++)
-    {
-        for (cordIndex1 = 0; cordIndex1 < dim; cordIndex1++)
-        {
-            results[resultsIndex] = newArr[centIndex1 * dim + cordIndex1];
-            resultsIndex++;
-        }
-    }
-}
-
-/* free arrays memory */
-void freeArraysMemory(double *points, int *pointToWhichCluster, int *clustersCounters,
-                      double *centroidsOdd, double *centroidsEven,
-                      double *newCentroidAverageBeforeDivision)
-{
-    points++;
-    points--;
-
-    free(pointToWhichCluster);
-    free(clustersCounters);
-    free(centroidsOdd);
-    free(centroidsEven);
-    free(newCentroidAverageBeforeDivision);
-}
-
-int kmeans(int n, int k, int dim, int maxIter, double *points, double *centroids, double *results)
-{
-    /* indices for algorithm functions */
-    int iter;
-    int centroidIndex;
-
-    /* Arrays Allocation */
-    double *centroidsEven = (double *)0;
-    double *centroidsOdd = (double *)0;
-    int *pointToWhichCluster = (int *)0;
-    int *clustersCounters = (int *)0;
-    double *newCentroidAverageBeforeDivision = (double *)0;
-
-    /* Arrays malloc & Assert */
-    centroidsEven = (double *)malloc(k * dim * sizeof(double));
-    if (!centroidsEven)
-    {
-        printf("%s\n", "An Error Has Occured");
-        assert(0);
-    }
-
-    centroidsOdd = (double *)malloc(k * dim * sizeof(double));
-    if (!centroidsOdd)
-    {
-        printf("%s\n", "An Error Has Occured");
-        assert(0);
-    }
-
-    pointToWhichCluster = (int *)malloc(n * sizeof(int));
-    if (!pointToWhichCluster)
-    {
-        printf("%s\n", "An Error Has Occured");
-        assert(0);
-    }
-
-    clustersCounters = (int *)malloc(k * sizeof(int));
-    if (!clustersCounters)
-    {
-        printf("%s\n", "An Error Has Occured");
-        assert(0);
-    }
-
-    newCentroidAverageBeforeDivision = (double *)malloc(k * dim * sizeof(double));
-    if (!newCentroidAverageBeforeDivision)
-    {
-        printf("%s\n", "An Error Has Occured");
-        assert(0);
-    }
-
-    /* --------------- Kmeans algorithm --------------- */
-
-    /* step 1 - copy centroids to centroidsOdd */
-    for (centroidIndex = 0; centroidIndex < k * dim; centroidIndex++)
-    {
-        centroidsOdd[centroidIndex] = centroids[centroidIndex];
-    }
-
-
-    /* step 3 - first arrangement of points to clusters */
-    reArrangePointsToClusters(points, pointToWhichCluster, centroidsOdd, n, k, dim);
-
-    /* step 4 - first update of centroids & check whether reached convergence */
-    reSelectCentroids(points, clustersCounters, pointToWhichCluster, centroidsEven,
-                      newCentroidAverageBeforeDivision, n, k, dim);
-
-    /* copy centroids to results if reached convergence */
-    if (areCentroidsEqual(centroidsOdd, centroidsEven, k, dim) == 1)
-    {
-        copyResults(centroidsOdd, k, dim, results);
-        freeArraysMemory(points, pointToWhichCluster, clustersCounters,
-                         centroidsOdd, centroidsEven, newCentroidAverageBeforeDivision);
-        return 0;
-    }
-
-    /* iterate until convergence - steps 3&4 */
-    for (iter = 0; iter < maxIter - 1; iter++)
-    {
-        if (iter % 2 == 0)
-        {
-            /* step 3 - arrangement of points to clusters */
-            reArrangePointsToClusters(points, pointToWhichCluster, centroidsEven, n, k, dim);
-
-            /* step 4 - update of centroids & check whether reached convergence */
-            reSelectCentroids(points, clustersCounters, pointToWhichCluster, centroidsOdd,
-                              newCentroidAverageBeforeDivision, n, k, dim);
-
-            /* copy centroids to results if reached convergence */
-            if (areCentroidsEqual(centroidsEven, centroidsOdd, k, dim) == 1)
-            {
-                copyResults(centroidsOdd, k, dim, results);
-                freeArraysMemory(points, pointToWhichCluster, clustersCounters,
-                                 centroidsOdd, centroidsEven, newCentroidAverageBeforeDivision);
-                return 0;
-            }
+            free_matrix(data_points);
+            return error();
         }
         else
         {
-            /* step 3 - arrangement of points to clusters */
-            reArrangePointsToClusters(points, pointToWhichCluster, centroidsOdd, n, k, dim);
-
-            /* step 4 - update of centroids & check whether reached convergence */
-            reSelectCentroids(points, clustersCounters, pointToWhichCluster, centroidsEven,
-                              newCentroidAverageBeforeDivision, n, k, dim);
-
-            /* copy centroids to results if reached convergence */
-            if (areCentroidsEqual(centroidsOdd, centroidsEven, k, dim) == 1)
-            {
-                copyResults(centroidsEven, k, dim, results);
-                freeArraysMemory(points, pointToWhichCluster, clustersCounters,
-                                 centroidsOdd, centroidsEven, newCentroidAverageBeforeDivision);
-                return 0;
-            }
+            print_matrix(out);
+            free_matrix(out);
+        }
+    }
+    else
+    {
+        if (j_out == NULL) /*an error occurred in jacobi algorithm calculation*/
+        {
+            free_matrix(data_points);
+            return error();
+        }
+        else
+        {
+            /*prints the eigenvalues without the "-" before zeros*/
+            print_matrix_formatted(j_out->eigenvalues, 1);
+            print_matrix(j_out->eigenvectors_mat);
+            free_eigen_data(j_out);
         }
     }
 
-    /* copy centroidsOdd if reached iter == maxIter */
-    if (maxIter % 2 == 0)
-    {
-        copyResults(centroidsOdd, k, dim, results);
-        freeArraysMemory(points, pointToWhichCluster, clustersCounters,
-                         centroidsOdd, centroidsEven, newCentroidAverageBeforeDivision);
-    }
-    else
-    { /* copy centroidsEven if reached iter == maxIter */
-        copyResults(centroidsEven, k, dim, results);
-        freeArraysMemory(points, pointToWhichCluster, clustersCounters,
-                         centroidsOdd, centroidsEven, newCentroidAverageBeforeDivision);
-    }
+    free_matrix(data_points);
     return 0;
 }
 
-/* used when python calls to kmeans in c at kmeansPP algorithm */
-int fitToKmeans(double *x, int n, int dim, int k, int maxIter, double *centroids, double *results)
+/*implementation - general*/
+/*converts from string to enum GOAL.
+from https://stackoverflow.com/questions/16844728/converting-from-string-to-enum-in-c*/
+GOAL string_to_goal(const char *str)
 {
-    int ret = 0;
-
-	kmeans(n, k, dim, maxIter, x, centroids, results);
-
-    if (x == NULL || centroids == NULL || results == NULL) {
-        ret = -2;
-        goto out;
-    }
-
-out:
-    return ret;
-}
-
-/* ######################## SP-kmeans Algorithm ######################## */
-
-/*--------------- auxiliary functions ---------------*/
-
-/* count commas at each line when reading file */
-int commasCount(char *p)
-{
-    int count = 0;
-    while (*p)
-    {
-        if (*p == ',')
-            count++;
-        p++;
-    }
-    return count;
-}
-
-/* return euclidean distance between points x, y in dim dimension */
-double euclideanDistance(double x[], double y[], int dim)
-{
-    double sumUp = 0;
-    double res;
-    int coordinate;
-
-    double *coordinateSub = (double *)malloc(dim * sizeof(double));
-    if (!coordinateSub)
-    {
-        printf("%s\n", "An Error Has Occured");
-        assert(0);
-    }
-
-    for (coordinate = 0; coordinate < dim; coordinate++)
-    {
-        coordinateSub[coordinate] = x[coordinate] - y[coordinate];
-
-        /* pow(coordinateSub[coordinate], 2) */
-        coordinateSub[coordinate] = coordinateSub[coordinate] * coordinateSub[coordinate];
-        sumUp += coordinateSub[coordinate];
-    }
-
-    /* res = sqrt(sumUp) */
-    res = pow(sumUp, 0.5);
-
-    free(coordinateSub);
-
-    return res;
-}
-
-/* return norma of vector in dim dimension */
-double vectorNorm(double *vector, int dim)
-{
-    int i;
-    double sumOfRowsPower = 0.0;
-    double norma;
-
-    for (i = 0; i < dim; i++)
-    {
-        sumOfRowsPower += vector[i] * vector[i];
-    }
-    norma = pow(sumOfRowsPower, 0.5);
-
-    return norma;
-}
-
-/* sub of two matrices
-   matrix1 of dimension rowDim1, colDim1
-   matrix2 of dimension rowDim2, colDim2
-   return new matrix equal to matrix1 - matrix2 of dimension rowDim1, colDim1
-   not changing  matrix1, matrix2 itself
-   pre: rowDim1 = rowDim2 and colDim1 = colDim2 */
-void subTwoMatrices(double *matrix1, double *matrix2, int rowDim1, int colDim1, double *subMatrix)
-{
-    int i;
     int j;
-
-    for (i = 0; i < rowDim1; i++)
+    for (j = 0; j < NUMBER_OF_VALID_ENUM_OPTIONS; j++)
     {
-        for (j = 0; j < colDim1; j++)
+        if (!strcmp(str, conversion[j].str))
         {
-            subMatrix[i * rowDim1 + j] = matrix1[i * rowDim1 + j] - matrix2[i * rowDim1 + j];
+            return conversion[j].val;
         }
     }
+    return invalid;
 }
 
-/* multiplication of two matrices
-   matrix1 of dimension rowDim1, colDim1
-   matrix2 of dimension rowDim2, colDim2
-   return new matrix equal to matrix1 * matrix2 of dimension rowDim1, colDim2
-   not changing  matrix1, matrix2 itself
-   pre: colDim1 = rowDim2 */
-void multiTwoMatrices(double *matrix1, double *matrix2, int rowDim1, int colDim1, int colDim2, double *multiMatrix)
+/*implementation - functions of kmeans++*/
+/*  gets a csv/txt file name (assumes that the file is in the right format and that it exists),
+ *  returns a matrix that represents the parsed data points from the file.
+ *  each row in the matrix is a point and each cell is a coordinate.
+ *  @param input_file_name the name of the input file.
+ *  @return struct matrix containing the data points. returns NULL on error.
+ */
+matrix *read_input_file(char *input_file_name)
 {
-    int i;
-    int j;
-    int k;
-    double sumOfRowByColumnMulti = 0.0;
+    FILE *ifp = NULL;
+    matrix *data_points = NULL;
+    char c;
+    double coordinate = 0;
+    int i = 0, j = 0, d = 1, n = 0;
 
-    for (i = 0; i < rowDim1; i++)
+    /*read input file*/
+    ifp = fopen(input_file_name, "r");
+
+    /*cannot open file*/
+    if (ifp == NULL)
     {
-        for (j = 0; j < colDim2; j++)
+        return NULL;
+    }
+
+    /*find d*/
+    while ((c = fgetc(ifp)) != '\n') /*there must be \n before EOF because file is in the right format*/
+    {
+        if (c == ',')
+            d++;
+    }
+    rewind(ifp);
+
+    /*find n*/
+    while ((c = fgetc(ifp)) != EOF)
+    {
+        if (c == '\n')
+            n++;
+    }
+    rewind(ifp);
+
+    /*create matrix*/
+    data_points = create_matrix(n, d);
+    if (data_points == NULL)
+    {
+        fclose(ifp);
+        return NULL;
+    }
+
+    /*read points from file*/
+    while (fscanf(ifp, "%lf,", &coordinate) > 0)
+    {
+        if (j == d) /*we finished a point, move to a the next point*/
         {
-            for (k = 0; k < colDim1; k++)
+            j = 0;
+            i++;
+        }
+        data_points->values[i][j] = coordinate;
+        j++;
+    }
+
+    /*close the file*/
+    fclose(ifp);
+
+    return data_points;
+}
+
+/*  the main part of the kmeans algorithm.
+ *  the function gets the parsed data points and the different parameters,
+ *  and returns the final centroids.
+ *  @param data_points the parsed data points.
+ *  @param centroids the chosen centroids (from python). IMPORTANT - the function changes the given centroids!
+ *  @param max_iter the maximal number of iterations.
+ *  @param epsilon the precision of the result.
+ *  @return a pointer to the given centroids (after the function changed them). returns NULL on error.
+ */
+matrix *fit_kmeanspp_c(matrix *data_points, matrix *centroids, int max_iter, double epsilon)
+{
+    int mu_flag = 1;
+    int i;
+    int iter_counter = 1;
+    int closest_centroid_index;
+    int d = data_points->columns, n = data_points->rows, k = centroids->rows;
+    double *point = NULL;
+    double *new_centroid = NULL;
+    cluster *clusters = NULL;
+
+    /*allocate current centroid*/
+    new_centroid = (double *)calloc(d, sizeof(double));
+    if (new_centroid == NULL) /*calloc of new_centroid failed*/
+    {
+        return NULL;
+    }
+
+    /*create clusters*/
+    clusters = create_clusters(k, n);
+    if (clusters == NULL)
+    {
+        free(new_centroid);
+        return NULL;
+    }
+
+    while (mu_flag && iter_counter <= max_iter)
+    {
+        reset_clusters(clusters, k);
+        for (i = 0; i < n; i++)
+        {
+            /*put points into clusters*/
+            point = data_points->values[i];
+            closest_centroid_index = find_closest_centroid(point, centroids);
+            add_point(&(clusters[closest_centroid_index]), i);
+        }
+
+        /*update centroids*/
+        mu_flag = 0;
+        for (i = 0; i < k; i++)
+        {
+            if (update_centroid(&(clusters[i]), centroids->values[i], new_centroid, data_points, epsilon) == 1)
             {
-                sumOfRowByColumnMulti += matrix1[i * rowDim1 + k] * matrix2[k * colDim1 + j];
+                mu_flag = 1;
             }
-
-            multiMatrix[i * rowDim1 + j] = sumOfRowByColumnMulti;
-            sumOfRowByColumnMulti = 0.0;
+            memset(new_centroid, 0, d * sizeof(double));
         }
+        iter_counter++;
     }
+
+    /*free memory*/
+    free_clusters(clusters, k);
+    free(new_centroid);
+
+    return centroids;
 }
 
-/* recieve matrix of dimension rowCol, dimRow
-   return the transpose matrix of dimension dimRow, rowCol
-   not changing the matrix itself */
-void transpose(double *matrix, int rowDim, int colDim, double *transposeMatrix)
+/*  gets the clusters array and resets each cluster.
+ *  @param clusters array of clusters.
+ *  @param k the number of clusters.
+ */
+void reset_clusters(cluster *clusters, int k)
 {
     int i;
-    int j;
-
-    for (i = 0; i < rowDim; i++)
+    for (i = 0; i < k; i++)
     {
-        for (j = 0; j < colDim; j++)
-        {
-            transposeMatrix[i * rowDim + j] = matrix[j * colDim + i];
-        }
+        clusters[i].num_points = 0;
     }
 }
 
-/* creating diagonal degree matrix D from Weight matrix W
-   diagonal[i,j] = sum of weight[i,z] when z goes from 1 to n
-   recieves empty matrix of size n*n and fill it
-   not changing weightedMatrix itself */
-void diagonalMatrixFromW(double *weightedMatrix, int len, double *diagonal)
+/*  allocates the clusters array and retuns pointer to the array.
+ *  @param k the number of clusters.
+ *  @param n the number of data points.
+ */
+cluster *create_clusters(int k, int n)
 {
+    cluster *clusters = NULL;
+    int *points_indexes = NULL;
     int i;
-    int z;
-    double rowSum = 0.0;
 
-#if 0
-   for (i = 0; i < len; i++)
-		for (z = 0; z < len; z++)
-			diagonal[i*len+z] = 0.0;
-#endif
-	
-    for (i = 0; i < len; i++)
+    clusters = (cluster *)calloc(k, sizeof(cluster));
+    if (clusters == NULL) /*calloc of clusters failed*/
     {
-        for (z = 0; z < len; z++)
-        {
-            rowSum += weightedMatrix[i * len + z];
-        }
-        diagonal[i * len + i] = rowSum;
-        rowSum = 0.0;
+        return NULL;
     }
-}
 
-/* pow(-1/2) of a diagonal matrix D
-   return new matrix, not changing D itself
-   pre: matrix D must be diagonal dim * dim order */
-void negativeSqrtMatrix(double *matrixD, int dim, double *negativeSqrtMatrix)
-{
-    int i;
-
-    for (i = 0; i < dim; i++)
+    for (i = 0; i < k; i++)
     {
-        /* in case eleme is zero, avoid dividing by zero */
-        if (matrixD[i * dim + i] == 0.0)
+        points_indexes = (int *)calloc(n, sizeof(int));
+        if (points_indexes == NULL) /*calloc of points_indexes failed*/
         {
-            negativeSqrtMatrix[i * dim + i] = 0.0;
+            free_clusters(clusters, k);
+            return NULL;
         }
-        /* otherwise */
-        else
+
+        clusters[i].num_points = 0;
+        clusters[i].points_indexes = points_indexes;
+    }
+    return clusters;
+}
+
+/*  gets a data point and the centroids array
+ *  and returns the index of the closest centroid (in euclidian norm).
+ *  @param point a data point.
+ *  @param centroids the current centroids.
+ */
+int find_closest_centroid(double *point, matrix *centroids)
+{
+    int i;
+    int k = centroids->rows, d = centroids->columns;
+    int min_i = 0;
+    double min_norm, norm;
+
+    min_norm = euclidean_norm_squared(centroids->values[0], point, d); /*k must be > 1*/
+    for (i = 1; i < k; i++)
+    {
+        norm = euclidean_norm_squared(centroids->values[i], point, d);
+        if (norm < min_norm)
         {
-            negativeSqrtMatrix[i * dim + i] = pow(matrixD[i * dim + i], -0.5);
+            min_norm = norm;
+            min_i = i;
         }
+    }
+    return min_i;
+}
+
+/*  gets a data point index and adds it as a point in the given cluster.
+ *  @param cluster poinetr to the cluster.
+ *  @param point_index a point index in the data points matrix.
+ */
+void add_point(cluster *cluster, int point_index)
+{
+    int i = cluster->num_points;
+    cluster->points_indexes[i] = point_index;
+    cluster->num_points++;
+}
+
+/*  gets a cluster and the current centroids and updates it according to the points in the cluster.
+ *  if the difference between the old centroid and the new centroid is smaller then epsilon, 0 will be returened.
+ *  else 1 will be returned indicating that we need to keep updating this centroid.
+ *  @param current_cluster pointer to the cluster.
+ *  @param current_centroid.
+ *  @param new_centroid must be initiallized with 0s!!!
+ *  @param data_points the data points.
+ *  @param epsilon the algorithm precision.
+ */
+int update_centroid(cluster *current_cluster, double *current_centroid, double *new_centroid, matrix *data_points, double epsilon)
+{
+    double *current_point = NULL;
+    int i, j, current_point_index;
+    int d = data_points->columns;
+    double dist;
+
+    for (i = 0; i < current_cluster->num_points; i++)
+    {
+        current_point_index = current_cluster->points_indexes[i];
+        current_point = data_points->values[current_point_index];
+
+        for (j = 0; j < d; j++)
+        {
+            new_centroid[j] += current_point[j] / current_cluster->num_points;
+        }
+    }
+
+    dist = sqrt(euclidean_norm_squared(new_centroid, current_centroid, d));
+    /*update current centroid*/
+    memcpy(current_centroid, new_centroid, sizeof(double) * d);
+    if (dist < epsilon)
+    {
+        return 0;
+    }
+    return 1;
+}
+
+/*  frees the clusters array.
+ *  @param clusters the clusters array.
+ *  @param k the number of clusters.
+ */
+void free_clusters(cluster *clusters, int k)
+{
+    int i;
+    for (i = 0; i < k; i++)
+    {
+        free(clusters[i].points_indexes);
+    }
+    free(clusters);
+}
+
+/*print error message and return (for main in c).*/
+int invalid_input()
+{
+    printf("Invalid Input!");
+    return 1;
+}
+int error()
+{
+    printf("An Error Has Occurred");
+    return 1;
+}
+
+/*implementation - functions of The Normalized Spectral Clustering Algorithm*/
+/*calculates euclidean norm between two points (that are represented by one dimensional array).
+the returned result is squared.*/
+double euclidean_norm_squared(double *point1, double *point2, int d)
+{
+    double sum = 0;
+    int i;
+
+    for (i = 0; i < d; i++)
+    {
+        sum += pow(point1[i] - point2[i], 2);
+    }
+    return sum;
+}
+
+/*prints a matrix in the desired format.
+if format_zero is 1 then "-0.0000" will be printed as "0.0000".
+else, the output will be formatted only with "%.4f".*/
+void print_matrix_formatted(matrix *mat, int format_zero)
+{
+    int i, j;
+    double val;
+
+    for (i = 0; i < mat->rows; i++)
+    {
+        for (j = 0; j < mat->columns - 1; j++)
+        {
+            val = mat->values[i][j];
+            printf((format_zero && fabs(val) < 0.00005) ? "0.0000," : "%.4f,", val);
+        }
+
+        val = mat->values[i][mat->columns - 1];
+        /*print the last coordinate in the row seperatly with \n*/
+        printf((format_zero && fabs(val) < 0.00005) ? "0.0000\n" : "%.4f\n", val);
     }
 }
 
-/* creating Weighted Adjacency Matrix matrix W.
-   recieve points array, n, dim and empty matrix weightedAdjancy
-   return the matrix weightedAdjancy of size n*n after filling it
-   not changing points itself */
-void WeightedAdjacencyMatrixFromPoints(double *points, int n, int dim, double *weightedAdjancy)
+/*prints a matrix in the default format.*/
+void print_matrix(matrix *mat)
+{
+    print_matrix_formatted(mat, 0);
+}
+
+/*creates a new matrix with the result of dot(mat1, mat2).
+if there is an allocation error - returns NULL.
+the dimensions of the matrixes are assumed to be legal.*/
+matrix *dot_product(matrix *mat1, matrix *mat2)
+{
+    /*the number of rows in mat1 is the number of rows in the result matrix.
+    the number of columns in mat2 is the number of columns in the result matrix.*/
+    int i, j, k;
+    matrix *mat = NULL;
+    mat = create_matrix(mat1->rows, mat2->columns);
+    if (mat == NULL)
+    {
+        return NULL;
+    }
+    for (i = 0; i < mat->rows; i++)
+    {
+        for (j = 0; j < mat->columns; j++)
+        {
+            for (k = 0; k < mat1->columns; k++)
+            {
+                mat->values[i][j] += mat1->values[i][k] * mat2->values[k][j];
+            }
+        }
+    }
+    return mat;
+}
+
+/*creates the Weighted Adjancency Matrix from the given data points.
+the diagonal is all 0s, and the rest of the cells are calculated according to the formula.
+the dimensions of the created matrix are n*n, as n = data_points->rows (the number of points).
+in case of an allocation error, returns NULL.*/
+matrix *calculate_w(matrix *data_points)
+{
+    int i, j;
+    double norm;
+    matrix *w_mat = NULL;
+    w_mat = create_matrix(data_points->rows, data_points->rows);
+    if (w_mat == NULL)
+    {
+        return NULL;
+    }
+    for (i = 0; i < w_mat->rows; i++)
+    {
+        for (j = i + 1; j < w_mat->columns; j++)
+        {
+            {
+                norm = sqrt(euclidean_norm_squared(data_points->values[i], data_points->values[j], data_points->columns));
+                w_mat->values[i][j] = exp(norm * -0.5);
+                w_mat->values[j][i] = w_mat->values[i][j];
+            }
+        }
+    }
+    return w_mat;
+}
+
+/*creates the Diagonal Degree Matrix from a calculted Weighted Adjancency Matrix.
+the diagonal is calculated according to the formula, the rest of the cells are 0s.
+the dimensions of the created matrix are the same as w matrix.
+in case of an allocation error, returns NULL.*/
+matrix *calculate_d_from_w(matrix *w_mat)
+{
+    int i, j;
+    matrix *d_mat = NULL;
+    /*create d matrix*/
+    d_mat = create_matrix(w_mat->rows, w_mat->columns);
+    if (d_mat == NULL)
+    {
+        return NULL;
+    }
+    for (i = 0; i < d_mat->rows; i++)
+    {
+        for (j = 0; j < d_mat->columns; j++)
+        {
+            d_mat->values[i][i] += w_mat->values[i][j];
+        }
+    }
+
+    return d_mat;
+}
+
+/*creates the Diagonal Degree Matrix from the data points.
+the diagonal is calculated according to the formula, the rest of the cells are 0s.
+the dimensions of the created matrix are the same as w matrix.
+in case of an allocation error, returns NULL.*/
+matrix *calculate_d(matrix *data_points)
+{
+    matrix *d_mat = NULL, *w_mat = NULL;
+    /*calculate w in order to calculate d*/
+    w_mat = calculate_w(data_points);
+    if (w_mat == NULL)
+    {
+        return NULL;
+    }
+    /*create d matrix*/
+    d_mat = calculate_d_from_w(w_mat);
+    if (d_mat == NULL)
+    {
+        free_matrix(w_mat);
+        return NULL;
+    }
+
+    /*free w_mat*/
+    free_matrix(w_mat);
+
+    return d_mat;
+}
+
+/*calculates for each i between 0 and mat->rows: 1/sqrt(mat[i][i]),
+and sets mat[i][i] to be the calculated value.
+the changes are in-place.*/
+void sqrt_diagonal(matrix *mat)
 {
     int i;
-    int j;
-    double euclidDistance;
+    for (i = 0; i < mat->rows; i++)
+    {
+        mat->values[i][i] = 1 / sqrt(mat->values[i][i]);
+    }
+}
 
+/*creates the Normalized Graph Laplacian from a calculted Weighted Adjancency Matrix and Diagonal Degree Matrix.
+the matrix is calculated according to the formula.
+in case of an allocation error, returns NULL.*/
+matrix *calculate_l(matrix *data_points)
+{
+    int i, j;
+    matrix *l_mat = NULL, *d_mat = NULL, *w_mat = NULL;
+    matrix *temp = NULL;
+
+    /*calculate w matrix*/
+    w_mat = calculate_w(data_points);
+    if (w_mat == NULL)
+    {
+        return NULL;
+    }
+    /*calculate d matrix*/
+    d_mat = calculate_d_from_w(w_mat);
+    if (d_mat == NULL)
+    {
+        free_matrix(w_mat);
+        return NULL;
+    }
+    /*calculate D^(-0.5), changes D in-place!!!*/
+    sqrt_diagonal(d_mat);
+
+    /*calculate D^(-0.5) * W * D^(-0.5).*/
+    temp = dot_product(d_mat, w_mat);
+    if (temp == NULL)
+    {
+        free_matrix(w_mat);
+        free_matrix(d_mat);
+        return NULL;
+    }
+    l_mat = dot_product(temp, d_mat);
+    if (l_mat == NULL)
+    {
+        free_matrix(w_mat);
+        free_matrix(d_mat);
+        free_matrix(temp);
+        return NULL;
+    }
+
+    /*free all*/
+    free_matrix(w_mat);
+    free_matrix(d_mat);
+    free_matrix(temp);
+
+    /*calculate I - D^(-0.5) * W * D^(-0.5) (== (-l_mat) + I)*/
+    for (i = 0; i < l_mat->rows; i++)
+    {
+        for (j = 0; j < l_mat->columns; j++)
+        {
+            l_mat->values[i][j] *= -1;
+            if (i == j)
+            {
+                l_mat->values[i][j] += 1;
+            }
+        }
+    }
+    return l_mat;
+}
+
+/*normalizes the rows of the given matrix according to the formula.
+the change is in-place.*/
+void normalize_matrix(matrix *mat)
+{
+    int i, j;
+    double sum = 0;
+    for (i = 0; i < mat->rows; i++)
+    {
+        /*for each row, calculate the sum of squares*/
+        for (j = 0; j < mat->columns; j++)
+        {
+            sum += pow(mat->values[i][j], 2);
+        }
+        sum = sqrt(sum);
+        /*normalize*/
+        for (j = 0; j < mat->columns; j++)
+        {
+            mat->values[i][j] = sum > 0 ? mat->values[i][j] / sum : 0;
+        }
+        /*init sum for next row*/
+        sum = 0;
+    }
+}
+
+/*creates identity matrix with dimensions of n*n*/
+matrix *create_identity_matrix(int n)
+{
+    int i;
+    matrix *i_mat = NULL;
+    i_mat = create_matrix(n, n);
+    if (i_mat == NULL)
+    {
+        return NULL;
+    }
     for (i = 0; i < n; i++)
     {
-        for (j = i + 1; j < n; j++)
-        {
-            /* weights are symmetric - so euclidean distance calculates once */
-            euclidDistance = euclideanDistance(&points[i * dim], &points[j * dim], dim);
-            euclidDistance = exp(euclidDistance * -0.5);
-            weightedAdjancy[i * n + j] = euclidDistance;
-            weightedAdjancy[j * n + i] = euclidDistance;
-        }
+        i_mat->values[i][i] = 1;
     }
+    return i_mat;
 }
 
-/* form new matrix from matrixU by renormalizing each of U’s rows to have unit length
-   return pointer to new matrix renormalizedRowMatrix, not changing U itself
-   renormalizedRowMatrix is empty of size rowDim * colDim */
-void renormalizingMatrixRow(double *matrixU, int rowDim, int colDim, double *renormalizedRowMatrix)
+/*creates the eigenvalues array and the eigenvectors matrix V.
+the input a, is a valid symmetric matrix.
+in case of an allocation error, returns NULL.*/
+eigen_data *calculate_jacobi(matrix *a)
 {
-    int i;
-    int j;
-    int l;
-    double iRowNorma;
-    double *iRow;
-	
-    iRow = (double *)calloc(colDim, sizeof(double));
-    if (!iRow)
+    /*i and j are indexes for the pivot in the jacobi algorithm.
+    we preform the algorithm only on matrixes bigger then 1X1 so it is safe to assume that j=1 exists.
+    the initialization is 0,1 because the defult pivot is 0,1 entry of the matrix*/
+    int i = 0, j = 1;
+
+    int l = 0, count_iter = 0;
+    double off_a, off_a_tag;
+    matrix *v = NULL, *p = NULL, *temp = NULL;
+    eigen_data *result = NULL;
+
+    /*create identity matrix to initialize V matrix*/
+    v = create_identity_matrix(a->rows);
+    if (v == NULL)
     {
-        printf("%s\n", "An Error Has Occured");
-        assert(0);
+        return NULL;
     }
-	
-	
-    for (i = 0; i < rowDim; i++)
+
+    /*check if the matrix is allready diagonal.
+    if the matrix a is diagonal - don't preform the jacobi algorithm.
+    in that case v will be the identity matrix and the eigenvalues will be on the diagonal of a.*/
+    if (off(a) != 0)
     {
-        /* find the norma of row i */
-        for (l = 0; l < colDim; l++)
+        /*preforming the algorithm*/
+        do
         {
-            iRow[l] = matrixU[i * colDim + l];
-        }
-        iRowNorma = vectorNorm(iRow, colDim);
-		
-		/* update T by taking U and renormalize */
-        for (j = 0; j < colDim; j++)
-        {
-            if (iRowNorma != 0.0)
+            count_iter++;
+            /*find maximal off-diagonal a[i][j] in a matrix*/
+            find_pivot(a, &i, &j);
+            /*calculate off before rotation*/
+            off_a = off(a);
+            /*calculate rotation matrix p*/
+            p = calculate_p(a, i, j);
+            if (p == NULL)
             {
-                renormalizedRowMatrix[i * colDim + j] = matrixU[i * colDim + j] / iRowNorma;
+                free_matrix(v);
+                return NULL;
             }
-            else
+            /*rotate a, this changes a (in-place) to be a' = p^t*a*p */
+            rotate_matrix(a, p, i, j);
+            /*calculate off after rotation*/
+            off_a_tag = off(a);
+            /*calculte v = v*p */
+            temp = dot_product(v, p);
+            if (temp == NULL)
             {
-                renormalizedRowMatrix[i * colDim + j] = 0.0;
+                free_matrix(v);
+                free_matrix(p);
+                return NULL;
             }
-        }
+            free_matrix(v); /*free the old v*/
+            v = temp;       /*update the current v to be the dot product*/
+            free_matrix(p); /*free the current rotation matrix*/
+
+        } while (off_a - off_a_tag > CONVERGENCE_EPSILON && count_iter < MAX_ITER_JACOBI);
     }
-    free(iRow);
+
+    /*prepering the result*/
+    /*allocate struct eigen_data for the returned value*/
+    result = (eigen_data *)calloc(1, sizeof(eigen_data));
+    if (result == NULL) /*calloc of result failed*/
+    {
+        free_matrix(v);
+        return NULL;
+    }
+    /*allocate eigenvalues one dimensional matrix*/
+    result->eigenvalues = create_matrix(1, a->rows);
+    if (result->eigenvalues == NULL)
+    {
+        free(result); /*only struct exists at this point*/
+        free_matrix(v);
+        return NULL;
+    }
+    /*make the eigenvalues array from the diagonal of final a after all rotations*/
+    for (l = 0; l < a->rows; l++)
+    {
+        result->eigenvalues->values[0][l] = a->values[l][l];
+    }
+
+    result->eigenvectors_mat = v; /*v is the eigenvectors of a*/
+
+    return result;
 }
 
-/* creating the normalized graph Laplacian
-   recieve D^(-0.5) and W matrices
-   calculate Lnorm = I - D^(-0.5) * W * D^(-0.5)
-   return the matrix Lnorm, not changing W, D^(-0.5)
-   Lnorm is of size dim * dim */
-void normalizedGraphLaplacian(double *Dsqrt, double *W, int dim, double *Lnorm)
+/*creates the rotation matrix P according to the formula.
+the dimensions of the created matrix are the same as a.
+i and j are row and column of the pivot element.
+in case of an allocation error, returns NULL.*/
+matrix *calculate_p(matrix *a, int i, int j)
 {
-    int i;
-    double *identityMatrix;
-    double *firstMulti;
-    double *secondMulti;
+    double theta, t, c, s;
+    int sign_theta;
 
-    /* identity matrix of dimension dim, dim */
-    identityMatrix = (double *)calloc(dim * dim, sizeof(double));
-    if (!identityMatrix)
+    matrix *p = NULL;
+    p = create_identity_matrix(a->rows);
+    if (p == NULL)
     {
-        printf("%s\n", "An Error Has Occured");
-        assert(0);
-    }
-    for (i = 0; i < dim; i++)
-    {
-        identityMatrix[i * dim + i] = 1;
+        return NULL;
     }
 
-    /* matrix for multiplication */
-    firstMulti = (double *)calloc(dim * dim, sizeof(double));
-    if (!firstMulti)
-    {
-        printf("%s\n", "An Error Has Occured");
-        assert(0);
-    }
-
-    /* matrix for multiplication */
-    secondMulti = (double *)calloc(dim * dim, sizeof(double));
-    if (!secondMulti)
-    {
-        printf("%s\n", "An Error Has Occured");
-        assert(0);
-    }
-
-    multiTwoMatrices(Dsqrt, W, dim, dim, dim, firstMulti);
-    multiTwoMatrices(firstMulti, Dsqrt, dim, dim, dim, secondMulti);
-    subTwoMatrices(identityMatrix, secondMulti, dim, dim, Lnorm);
-
-    free(identityMatrix);
-    free(firstMulti);
-    free(secondMulti);
-}
-
-/* receive matrix and return indices i, j.
-   where Aij is largest absolute off-diagonal value in matrix */
-void IndexOfMaxValInMatrix(double *matrix, int rowDim, int colDim, int *resultIndices)
-{
-    int i;
-    int j;
-    int maxI = 0;
-    int maxJ = 0;
-    double maxVal = -1.0;
-
-    for (i = 0; i < rowDim; i++)
-    {
-        for (j = 0; j < colDim; j++)
-        {
-            if (i != j)
-            {
-
-                if (maxVal < fabs(matrix[i * colDim + j]))
-                {
-                    maxVal = fabs(matrix[i * colDim + j]);
-                    maxI = i;
-                    maxJ = j;
-                }
-            }
-        }
-    }
-    resultIndices[0] = maxI;
-    resultIndices[1] = maxJ;
-}
-
-/* receive matrix A, dim of matrix A and indices i, j
-   return c, s values according to formula in project notes
-   c and s needed for buliding the rotation matrix P */
-void computingCandSforRotationMatrix(double *A, int rowDim, int *indices, double *valsCandS)
-{
-    int i = indices[0];
-    int j = indices[1];
-    int sign;
-    double theta;
-    double t;
-    double c;
-    double s;
-
-    /* computing theta & theta sign according to project notes */
-    theta = (A[j * rowDim + j] - A[i * rowDim + i]) / (2 * A[i * rowDim + j]);
-    if (theta > 0.0 || theta == 0.0)
-    {
-        sign = 1;
-    }
-    else
-    {
-        sign = -1;
-    }
-
-    /* computing t according to project notes */
-    t = (sign) / (fabs(theta) + pow(pow(theta, 2) + 1, 0.5));
-
-    /* computing c according to project notes */
-    c = 1 / (pow(pow(t, 2) + 1, 0.5));
-
-    /* computing s according to project notes */
+    /*calculate according to the formula*/
+    theta = (a->values[j][j] - a->values[i][i]) / (2 * a->values[i][j]);
+    sign_theta = (theta < 0) ? -1 : 1;
+    t = sign_theta / (fabs(theta) + sqrt(pow(theta, 2) + 1));
+    c = 1 / sqrt(pow(t, 2) + 1);
     s = t * c;
-
-    valsCandS[0] = c;
-    valsCandS[1] = s;
+    /*put the values in their place in p*/
+    p->values[i][i] = c;
+    p->values[j][j] = c;
+    p->values[i][j] = s;
+    p->values[j][i] = -1 * s;
+    return p;
 }
 
-/* calculate sum of squares of all off-diagonal elements in matrix */
-double sumSquareOffDiagonalElem(double *matrix, int rowDim, int colDim)
+/*finds the off-diagonal element with the largset absolute value in a (a must be symmetric matrix).
+i will be the index of it's row and j of it's column*/
+void find_pivot(matrix *a, int *i, int *j)
 {
-    int i;
-    int j;
-    double sumOfSquares = 0;
+    int row, col;
+    double max = 0, curr;
 
-    for (i = 0; i < rowDim; i++)
+    /*initialize i,j to be defult values*/
+    *i = 0;
+    *j = 1;
+
+    for (row = 0; row < a->rows; row++)
     {
-        for (j = 0; j < colDim; j++)
+        for (col = row + 1; col < a->columns; col++)
+        {
+            curr = fabs(a->values[row][col]);
+            if (curr > max)
+            {
+                max = curr;
+                *i = row;
+                *j = col;
+            }
+        }
+    }
+}
+
+/*creates the rotated matrix A' according to the formula.
+the change is in-place.
+i and j are row and column of the pivot element.*/
+void rotate_matrix(matrix *a, matrix *p, int i, int j)
+{
+    double c = p->values[i][i];
+    double s = p->values[i][j];
+    double temp_ri, temp_ii, temp_jj;
+    int r = 0;
+
+    for (r = 0; r < a->rows; r++)
+    {
+        if (r != i && r != j)
+        {
+            temp_ri = a->values[r][i];
+            a->values[r][i] = c * temp_ri - s * a->values[r][j];
+            a->values[i][r] = a->values[r][i];
+            a->values[r][j] = c * a->values[r][j] + s * temp_ri;
+            a->values[j][r] = a->values[r][j];
+        }
+    }
+
+    temp_ii = a->values[i][i];
+    temp_jj = a->values[j][j];
+    a->values[i][i] = pow(c, 2) * temp_ii + pow(s, 2) * temp_jj - 2 * s * c * a->values[i][j];
+    a->values[j][j] = pow(s, 2) * temp_ii + pow(c, 2) * temp_jj + 2 * s * c * a->values[i][j];
+    a->values[i][j] = 0;
+    a->values[j][i] = 0;
+}
+
+/*calculats off(a)^2 according to the formula.*/
+double off(matrix *a)
+{
+    double sum = 0;
+    int i, j;
+    for (i = 0; i < a->rows; i++)
+    {
+        for (j = 0; j < a->columns; j++)
         {
             if (i != j)
             {
-                sumOfSquares += pow(matrix[i * colDim + j], 2);
+                sum += pow(a->values[i][j], 2);
             }
         }
     }
-
-    return sumOfSquares;
+    return sum;
 }
 
-/* find eigenvalues.
-   sort eigenvalues & eigenVectors indices.
-   if k=0 find k with Eigengap Heuristic.
-   update eigenvalues in return array of jacobiAlgorithm.
-   update k in return array of jacobiAlgorithm.
-   update matrix U of eigenvectors in return array of jacobiAlgorithm. */
-void eigenvaluesSortingAndHeuristic(double *Atag, double *V, double **resultArray, int dim)
+/*compare function for qsort of two eigan_pair pointers. sort is according to eigenvalue*/
+int compare_eigen_pair(const void *p1, const void *p2)
 {
+    const eigen_pair *ep1 = p1, *ep2 = p2;
+    double comp;
+
+    comp = (ep1->eigenvalue) - (ep2->eigenvalue);
+    /*negative if ev1 < ev2. 0 if equal. positive if ev1 > ev2*/
+    if (comp < 0)
+    {
+        return -1;
+    }
+    if (comp > 0)
+    {
+        return 1;
+    }
+    /*equal*/
+    return 0;
+}
+
+/*creates the pairs of eigenvalue-eigenvector from the eigen data.
+the result is sorted according to the eigenvalues, ascending order*/
+eigen_pair *extract_sorted_eigen_pairs(eigen_data *jacobi_data)
+{
+    eigen_pair *eigen_pairs = NULL;
     int i;
-    int j;
-    int k;
-    int *eigenVectorsIndices;
+    int row, col;
+    int length = jacobi_data->eigenvalues->columns;
+    double *eigenvalues_jacobi_arr = jacobi_data->eigenvalues->values[0];
+    matrix *eigenvectors_jacobi_mat = jacobi_data->eigenvectors_mat;
 
-    eigenVectorsIndices = (int *)calloc(dim, sizeof(int));
-    if (!eigenVectorsIndices)
+    /*allocate the result array and check allocation*/
+    eigen_pairs = (eigen_pair *)calloc(length, sizeof(eigen_pair));
+    if (eigen_pairs == NULL) /*calloc of eigen_pairs failed*/
     {
-        printf("%s\n", "An Error Has Occured");
-        assert(0);
+        return NULL;
     }
 
-    /* find eigenvalues */
-    for (i = 0; i < dim; i++)
+    /*allocate eigenvectors in all pairs and set eigenvalues*/
+    for (i = 0; i < length; i++)
     {
-        resultArray[1][i] = Atag[i * dim + i];
-    }
-
-    /* sort eigenvalues & eigenVectors indices */
-    /* ------- this function update eigenvalues in return array of jacobiAlgorithm ------- */
-    stableSelectionSort(resultArray[1], eigenVectorsIndices, dim);
-
-    k = resultArray[2][0];
-
-    /* if k=0 find k with Eigengap Heuristic */
-    if (k == 0)
-    {
-        k = eigengapHeuristic(resultArray[1], dim);
-    }
-
-    /* ------- update k in return array of jacobiAlgorithm ------- */
-    resultArray[2][0] = (double)k;
-
-    /* changes U by taking k first eigenvectors columns from matrix V */
-    /* ------- it updates matrix U in return array of jacobiAlgorithm ------- */
-    for (i = 0; i < dim; i++)
-    {
-        for (j = 0; j < k; j++)
+        /*allocation:*/
+        /*the lentgh of an eigenvector is the same as the number of eigenvalues,
+        becuase the number of eigenvalues is fit to the dimensions of the symmetric matrix.*/
+        eigen_pairs[i].eigenvector = create_matrix(1, length);
+        if (eigen_pairs[i].eigenvector == NULL)
         {
-            resultArray[0][i * dim + j] = V[i * dim + eigenVectorsIndices[j]];
+            free_eigen_pairs(eigen_pairs, length);
+            return NULL;
+        }
+
+        /*set eigenvalues:
+        the eigenvalue in index i of eigen_pairs represents
+        the eigenvalue connected to eigenvector in column i*/
+        eigen_pairs[i].eigenvalue = eigenvalues_jacobi_arr[i];
+    }
+
+    /*extract the eigenvectors one cooridinate at a time*/
+    for (row = 0; row < length; row++)
+    {
+        for (col = 0; col < length; col++)
+        {
+            /*assign to each vector the relevant coordinate*/
+            eigen_pairs[col].eigenvector->values[0][row] = eigenvectors_jacobi_mat->values[row][col];
         }
     }
 
-    free(eigenVectorsIndices);
+    /*now eigen_pairs is the array of the connected eigenvalue-eigenvector.
+    sort it in-place*/
+    qsort(eigen_pairs, length, sizeof(eigen_pair), compare_eigen_pair);
+
+    return eigen_pairs;
 }
 
-/* stable selection sort.
-    used for eigenvalues sort, meaning Array = eigenvalues array.
-    at same time sort eigenVectors indices array. */
-void stableSelectionSort(double *Array, int *indicesArray, int len)
+/*recieves an array of eigen_pair structs sorted(!!!) according to the eigenvalues, ascending order.
+finds k according to the formula.
+n is the number of eigenvalues, which is the length of eigen_pairs*/
+int find_k_heuristic(eigen_pair *eigen_pairs, int n)
 {
+    double max_delta = 0, curr_delta;
+    int k = 1;
     int i;
-    int j;
-    int minIndex;
-    double minValue;
-    double *originEigenValue;
-
-    originEigenValue = (double *)calloc(len, sizeof(double));
-    if (!originEigenValue)
+    for (i = 0; i < n / 2; i++)
     {
-        printf("%s\n", "An Error Has Occured");
-        assert(0);
-    }
-    for (i = 0; i < len; i++)
-    {
-        originEigenValue[i] = Array[i];
-    }
-
-    /* loop invariant: elements till Array[i - 1] are already sorted */
-    for (i = 0; i < len; i++)
-    {
-        /* find minimum element from Array[i] to Array[n - 1] */
-        minIndex = i;
-        for (j = i + 1; j < len; j++)
-            if (Array[minIndex] > Array[j])
-                minIndex = j;
-
-        /* move elements from i to minIndex one step right */
-        minValue = Array[minIndex];
-        while (minIndex > i)
+        curr_delta = fabs(eigen_pairs[i].eigenvalue - eigen_pairs[i + 1].eigenvalue);
+        if (curr_delta > max_delta)
         {
-            Array[minIndex] = Array[minIndex - 1];
-            minIndex--;
-        }
-        /* put minimum element at current index i */
-        Array[i] = minValue;
-    }
-
-    for (i = 0; i < len; i++)
-    {
-        for (j = 0; j < len; j++)
-        {
-            if (Array[i] == originEigenValue[j])
-            {
-                indicesArray[i] = j;
-                originEigenValue[j] = -1.0; /* in spk all eigenvalues of Lnorm is non-negative*/
-                break;
-            }
-        }
-    }
-    free(originEigenValue);
-}
-
-/* computing k in case k=0 */
-int eigengapHeuristic(double *sortedEigenValues, int len)
-{
-    int i;
-    double tmpMax;
-    int k = 0;
-    double max = fabs(sortedEigenValues[0] - sortedEigenValues[1]);
-
-    for (i = 0; i < (len / 2); i++)
-    {
-        tmpMax = fabs(sortedEigenValues[i] - sortedEigenValues[i + 1]);
-        if (max < tmpMax)
-        {
-            max = tmpMax;
+            max_delta = curr_delta;
             k = i + 1;
         }
     }
-
     return k;
 }
 
-/* free jacobiAlgorithm function arrays */
-void freeJacobiAlgorithm(int *indicesIandJ, double *valsCandS, double *Ptranspose, double *Vmulti,
-                         double *firstMulti, double *P, double *Atag)
+/*creates the T Matrix from sorted eigen pairs.
+T is the normalized matrix of first k eigenvectors, according to the algorithm.
+the dimensions of the created matrix are (n = number of eigen pairs, k = chosen number of clusters)
+in case of an allocation error, returns NULL.*/
+matrix *calculate_t(eigen_pair *eigen_pairs, int n, int k)
 {
-    free(indicesIandJ);
-    free(valsCandS);
-    free(Ptranspose);
-    free(Vmulti);
-    free(firstMulti);
-    free(P);
-    free(Atag);
+    matrix *u = NULL;
+    int row, col;
+
+    /*creates u - the matrix of k first eigenvectors (not normalized)*/
+    u = create_matrix(n, k);
+    if (u == NULL)
+    {
+        return NULL;
+    }
+    for (row = 0; row < n; row++)
+    {
+        for (col = 0; col < k; col++)
+        {
+            /*assign the relevant coordinate of the eigenvector to the matrix*/
+            u->values[row][col] = eigen_pairs[col].eigenvector->values[0][row];
+        }
+    }
+
+    /*normalize u*/
+    normalize_matrix(u);
+
+    return u;
 }
 
-/* The Jacobi eigenvalue algorithm is an iterative method,
-   calculate the eigenvalues and eigenvectors of a real symmetric matrix (diagonalization) */
-double **jacobiAlgorithm(double *A, int rowDim, int colDim, double **resultArray, const char *goal)
+/*make the full process of the algorithm except K-means algorithn itself.
+if k=0 use hueristic to find k,
+else use the given k (this k was given as input from the user and is valid).
+returns T - the normalized matrix of first k eigenvectors.
+in case of an allocation error, returns NULL.*/
+matrix *fit_nsc_c(matrix *data_points, int k)
 {
-    /* function variables */
-    int i;
-    int j;
-    int iterationCnt;
-    double epsilon = pow(10, -15);
-    double offA;
-    double offAtag;
+    matrix *t = NULL, *lnorm = NULL;
+    eigen_data *ed_jacobi = NULL;
+    eigen_pair *eigen_pairs = NULL;
+    int n = data_points->rows; /*number of data points*/
 
-    /* array for the function that calculate i, j */
-    int *indicesIandJ;
-    int maxI;
-    int maxJ;
-
-    /* array for the function that calculate c, s */
-    double *valsCandS;
-    double c;
-    double s;
-
-    /* arrays for the function */
-    double *P;
-    double *Ptranspose;
-    double *Atag;
-    double *Vmulti;
-    double *firstMulti;
-
-    indicesIandJ = (int *)calloc(2, sizeof(int));
-    if (!indicesIandJ)
+    /*jacobi algorithm - calculate eigenvalues and eigenvectors from data points*/
+    lnorm = calculate_l(data_points);
+    if (lnorm == NULL)
     {
-        printf("%s\n", "An Error Has Occured");
-        assert(0);
+        return NULL;
     }
 
-    valsCandS = (double *)calloc(2, sizeof(double));
-    if (!valsCandS)
+    ed_jacobi = calculate_jacobi(lnorm);
+    if (ed_jacobi == NULL)
     {
-        printf("%s\n", "An Error Has Occured");
-        assert(0);
+        free_matrix(lnorm);
+        return NULL;
     }
 
-    /* creating P as diagonal matrix of dimension rowCol, dimRow */
-    P = (double *)calloc(rowDim * colDim, sizeof(double));
-    if (!P)
+    /*extract the sorted eigen pairs*/
+    eigen_pairs = extract_sorted_eigen_pairs(ed_jacobi);
+    if (eigen_pairs == NULL)
     {
-        printf("%s\n", "An Error Has Occured");
-        assert(0);
+        free_matrix(lnorm);
+        free_eigen_data(ed_jacobi);
+        return NULL;
     }
 
-    /* at first P is identity matrix */
-    for (i = 0; i < rowDim; i++)
+    /*find k, if k=0*/
+    if (k == 0)
     {
-        P[i * rowDim + i] = 1.0;
-    }
-
-    /* creating matrix for transpose function */
-    Ptranspose = (double *)calloc(rowDim * colDim, sizeof(double));
-    if (!Ptranspose)
-    {
-        printf("%s\n", "An Error Has Occured");
-        assert(0);
-    }
-
-    /* creating Atag as matrix of dimension rowCol, dimRow */
-    Atag = (double *)calloc(rowDim * colDim, sizeof(double));
-    if (!Atag)
-    {
-        printf("%s\n", "An Error Has Occured");
-        assert(0);
-    }
-
-    /* creating matrix for multiplication function */
-    firstMulti = (double *)calloc(rowDim * colDim, sizeof(double));
-    if (!firstMulti)
-    {
-        printf("%s\n", "An Error Has Occured");
-        assert(0);
-    }
-
-    /* creating matrix for multiplication function */
-    Vmulti = (double *)calloc(rowDim * colDim, sizeof(double));
-    if (!Vmulti)
-    {
-        printf("%s\n", "An Error Has Occured");
-        assert(0);
-    }
-
-    /* at first Vmulti is identity matrix */
-    for (i = 0; i < rowDim; i++)
-    {
-        Vmulti[i * rowDim + i] = 1.0;
-    }
-
-    /* ----- repeat a, b steps until A' is diagonal matrix ----- */
-
-    /* stop if iteration amount is bigger than 100 */
-    iterationCnt = 0;
-    while (iterationCnt < 100)
-    {
-        /* geting indices of absolute off-diagonal value in matrix A */
-        IndexOfMaxValInMatrix(A, rowDim, colDim, indicesIandJ);
-        maxI = indicesIandJ[0];
-        maxJ = indicesIandJ[1];
-
-        /* getting c, s according to the formula in project notes */
-        computingCandSforRotationMatrix(A, rowDim, indicesIandJ, valsCandS);
-        c = valsCandS[0];
-        s = valsCandS[1];
-
-        /* reset P to identity matrix */
-        memset(P, 0, sizeof(double) * rowDim * colDim);
-        for (i = 0; i < rowDim; i++)
+        k = find_k_heuristic(eigen_pairs, n);
+        /*k=1 is an error in the algorithm according to the instructions*/
+        if (k == 1)
         {
-            P[i * rowDim + i] = 1.0;
-        }
-
-        /* build rotation matrix P - put vals in relevent indices */
-        P[maxI * rowDim + maxJ] = s;
-        P[maxI * rowDim + maxI] = c;
-        P[maxJ * rowDim + maxI] = -s;
-        P[maxJ * rowDim + maxJ] = c;
-
-        /* Transform the matrix A: Atag = P-transpose * A * P */
-        transpose(P, rowDim, colDim, Ptranspose);
-        multiTwoMatrices(Ptranspose, A, rowDim, colDim, colDim, firstMulti);
-        multiTwoMatrices(firstMulti, P, rowDim, colDim, colDim, Atag);
-
-        /* Calculate the eigenvectors of A by multiplying all the rotation matrices */
-        /* update eigenvectors matrix V in return array */
-        multiTwoMatrices(Vmulti, P, rowDim, colDim, colDim, resultArray[0]);
-        for (i = 0; i < rowDim; i++)
-        {
-            for (j = 0; j < colDim; j++)
-            {
-                Vmulti[i * rowDim + j] = resultArray[0][i * rowDim + j];
-            }
-        }
-
-        /* stop if reach convergence */
-        offA = sumSquareOffDiagonalElem(A, rowDim, colDim);
-        offAtag = sumSquareOffDiagonalElem(Atag, rowDim, colDim);
-        if (fabs(offA - offAtag) < epsilon || fabs(offA - offAtag) == epsilon)
-        {
-            break;
-        }
-        /* otherwise A = Atag */
-        memcpy(A, Atag, sizeof(double) * rowDim * colDim);
-        iterationCnt++;
-    }
-
-    /* in case A is diagonal or there was a convergence or iterationCnt is 100 */
-
-    if (!strcmp(goal, "spk"))
-    {
-        /* in case of spk - sort eigenvalues, doing heuristic
-        in case k=0 and update result array */
-        eigenvaluesSortingAndHeuristic(Atag, Vmulti, resultArray, rowDim);
-    }
-    else if (!strcmp(goal, "jacobi"))
-    {
-        for (i = 0; i < rowDim; i++)
-        {
-            /* update eigenvectors in result array */
-            for (j = 0; j < colDim; j++)
-            {
-                resultArray[0][i * rowDim + j] = Vmulti[i * rowDim + j];
-            }
-
-            /* update eigenvalues in resultArray */
-            resultArray[1][i] = Atag[i * rowDim + i];
+            free_matrix(lnorm);
+            free_eigen_data(ed_jacobi);
+            free_eigen_pairs(eigen_pairs, n);
+            return NULL;
         }
     }
-	
-    freeJacobiAlgorithm(indicesIandJ, valsCandS, Ptranspose, Vmulti, firstMulti, P, Atag);
 
-    return resultArray;
+    /*calculate t*/
+    t = calculate_t(eigen_pairs, n, k);
+    if (t == NULL)
+    {
+        free_matrix(lnorm);
+        free_eigen_data(ed_jacobi);
+        free_eigen_pairs(eigen_pairs, n);
+        return NULL;
+    }
+
+    /*free memory*/
+    free_matrix(lnorm);
+    free_eigen_data(ed_jacobi);
+    free_eigen_pairs(eigen_pairs, n);
+
+    return t;
 }
 
-/* Calling to jacobiAlgorithm function,
-   in case goal is jacobi the symmetricMatrix is points.
-   in case goal is spk the symmetricMatrix is Lnorm.
-   Creating return Array for jacobiAlgorithm,
-   jacobiResArray[0] = eigenVectors matrix U of size n*n.
-   jacobiResArray[1] = eigenValues matrix of size n.
-   jacobiResArray[2] = matrix of size 1, will contain k. */
-int callingJacobiFromGoal(double *symmetricMatrix, double *matrixU, const char *goal, int k, int n)
+/*allocates an empty matrix filled with 0s.
+returns a pointer to the matrix.
+if the allocation fails, returns NULL*/
+matrix *create_matrix(int rows, int columns)
+{
+    int i = 0;
+    matrix *mat = NULL;
+    /*allocate struct matrix and check allocation*/
+    mat = (matrix *)calloc(1, sizeof(matrix));
+    if (mat == NULL) /*calloc of mat failed*/
+    {
+        return NULL;
+    }
+    /*set values of matrix*/
+    mat->rows = rows;
+    mat->columns = columns;
+    /*allocate values of matrix and check allocation*/
+    mat->values = NULL;
+    mat->values = (double **)calloc(rows, sizeof(double *));
+    if (mat->values == NULL) /*calloc of mat->values failed*/
+    {
+        free(mat);
+        return NULL;
+    }
+    for (i = 0; i < rows; i++)
+    {
+        mat->values[i] = (double *)calloc(columns, sizeof(double));
+        if (mat->values[i] == NULL) /*calloc of mat->values[i] failed*/
+        {
+            free_matrix(mat);
+            return NULL;
+        }
+    }
+    return mat;
+}
+
+/*free an allocated matrix.*/
+void free_matrix(matrix *mat)
 {
     int i;
-    int j;
-    double **jacobiResArray;
-    double *V;
-    double *Vtranspose;
-    double *eigenvalues;
-    double *kArray;
-
-    jacobiResArray = (double **)calloc(3, sizeof(double *));
-    if (!jacobiResArray)
+    if (mat != NULL)
     {
-        printf("%s\n", "An Error Has Occured");
-        assert(0);
-    }
-
-    V = (double *)calloc(n * n, sizeof(double));
-    if (!V)
-    {
-        printf("%s\n", "An Error Has Occured");
-        assert(0);
-    }
-
-    Vtranspose = (double *)calloc(n * n, sizeof(double));
-    if (!Vtranspose)
-    {
-        printf("%s\n", "An Error Has Occured");
-        assert(0);
-    }
-
-    eigenvalues = (double *)calloc(n, sizeof(double));
-    if (!eigenvalues)
-    {
-        printf("%s\n", "An Error Has Occured");
-        assert(0);
-    }
-
-    kArray = (double *)calloc(1, sizeof(double));
-    if (!kArray)
-    {
-        printf("%s\n", "An Error Has Occured");
-        assert(0);
-    }
-
-    kArray[0] = (double)k;
-
-    jacobiResArray[0] = V;
-    jacobiResArray[1] = eigenvalues;
-    jacobiResArray[2] = kArray;
-
-    jacobiAlgorithm(symmetricMatrix, n, n, jacobiResArray, goal);
-
-    if (!strcmp(goal, "jacobi"))
-    {
-        /* we print by rows and eigenvectors are columns of matrix */
-        transpose(V, n, n, Vtranspose);
-
-        /* fill matrix U with k first eigenvectors
-           we run till n+1 for placing eigenvalues on first row */
-        for (i = 0; i < n + 1; i++)
+        if (mat->values != NULL)
         {
-            for (j = 0; j < n; j++)
+            for (i = 0; i < mat->rows; i++)
             {
-                if (i == 0)
-                {
-                    matrixU[i * n + j] = eigenvalues[i * n + j];
-                }
-                else
-                {
-                    matrixU[i * n + j] = Vtranspose[(i - 1) * n + j];
-                }
+                free(mat->values[i]);
             }
+            free(mat->values);
         }
+        free(mat);
     }
-    else if (!strcmp(goal, "spk"))
-    {
-        if (k == 0)
-        {
-            /* taking real k - needed in case k was 0 */
-            k = (int)jacobiResArray[2][0];
-        }
-
-        /* fill matrix U with k first eigenvectors */
-        for (i = 0; i < n; i++)
-        {
-            for (j = 0; j < k; j++)
-            {
-                matrixU[i * k + j] = V[i * n + j];
-            }
-        }
-    }
-
-    free(V);
-    free(Vtranspose);
-    free(eigenvalues);
-    free(kArray);
-    free(jacobiResArray);
-
-    return k;
 }
 
-/* print matrix - using in main. */
-void printFromGoal(double *matrix, int rowDim, int colDim)
+/*free an allocated struct of eigen_data*/
+void free_eigen_data(eigen_data *jacobi_data)
+{
+    free_matrix(jacobi_data->eigenvalues);
+    free_matrix(jacobi_data->eigenvectors_mat);
+    free(jacobi_data);
+}
+
+/*free an allocated array of struct eigen_pair*/
+void free_eigen_pairs(eigen_pair *eigen_pairs, int length)
 {
     int i;
-    int j;
-	
-	if (g_np_context)
-		return;
-
-    for (i = 0; i < rowDim; i++)
+    for (i = 0; i < length; i++)
     {
-        for (j = 0; j < colDim; j++)
-        {
-            if (j != colDim - 1)
-            {
-                if (matrix[i * colDim + j] < 0 && matrix[i * colDim + j] > -0.0001)
-                { /* in case number is -0.0000 */
-                    printf("%.4f", 0.0000);
-                    printf(",");
-                }
-                else
-                {
-                    printf("%.4f", matrix[i * colDim + j]);
-                    printf(",");
-                }
-            }
-            else
-            {
-                if (matrix[i * colDim + j] < 0 && matrix[i * colDim + j] > -0.0001)
-                { /* in case number is -0.0000 */
-                    printf("%.4f", 0.0000);
-                }
-                else
-                {
-                    printf("%.4f", matrix[i * colDim + j]);
-                }
-            }
-        }
-        printf("\n");
+        free_matrix(eigen_pairs[i].eigenvector);
     }
+    free(eigen_pairs);
 }
-
-
-/*--------------- main program of SPkmeans ---------------*/
-
-int do_main(const char *arg, const char *goal, const char *fileName, double *results_array, double *k_array)
-{
-	    /* using in atoi when scanning args */
-    double kAtof;
-
-    /* in use at scan of input file for points array */
-    FILE *file;
-    char line[1000]; /* up to 1000 points and up to 10 features */
-    int n;
-    int dim;
-    int k = 0;
-    int nCounter;
-    int dimCounter;
-    char *token;
-
-    /* algorithm variables */
-    int i;
-
-    /* arrays pointers */
-    double *points = (double *)0;
-    double *weighted = (double *)0;
-    double *diagonal = (double *)0;
-    double *negativeSqrtDiag = (double *)0;
-    double *Lnorm = (double *)0;
-    double *U = (double *)0;
-    double *T = (double *)0;
-    double *kmeansResult = (double *)0;
-    double *initCentroids = (double *)0;
-
-    /*--------------- saving arguments ---------------*/
-	if (results_array)
-		g_np_context = 1;
-
-	if (strcmp(goal, "spk") && strcmp(goal, "wam") && strcmp(goal, "ddg") &&
-		strcmp(goal, "lnorm") && strcmp(goal, "jacobi"))
-	{ /* goal is not valid */
-		printf("%s\n", "Invalid Input!");
-		assert(0);
-	}
-
-	k = atoi(arg);
-	kAtof = atof(arg);
-
-	if (!(strcmp(goal, "spk")))
-	{
-		if ((double)(k) != kAtof)
-		{ /* Invalid input. K must be integer */
-			printf("%s\n", "Invalid Input!");
-			assert(0);
-		}
-
-		if (k < 0)
-		{ /* Invalid input. K must be non negative integer */
-			printf("%s\n", "Invalid Input!");
-			assert(0);
-		}
-	}
- 
-
-    /*--------------- scanning file ---------------*/
-
-	n = 0;
-	dim = 0;
-	
-    file = fopen(fileName, "r");
-    if (file == NULL)
-    { /* Error while opening the file */
-        printf("%s\n", "An Error Has Occured");
-    }
-
-    /* first scan for getting n, dim */
-    while (fgets(line, sizeof(line), file))
-    {
-        n++;
-        if (dim == 0)
-			dim = commasCount(line) + 1;
-    }
-
-
-    /* check correctness of n, dim  */
-
-    if (n < 1)
-    { /* Invalid input. At least one point is needed. */
-        printf("%s\n", "Invalid Input!");
-        assert(0);
-    }
-
-    if ((n <= k) && !(strcmp(goal, "spk")))
-    { /* Invalid input. K must be smaller than N and not equal to N. */
-        printf("%s\n", "Invalid Input!");
-        assert(0);
-    }
-
-    if (dim == 0)
-    { /* Invalid input. Dim of points is zero. */
-        printf("%s\n", "Invalid Input!");
-        assert(0);
-    }
-
-    /* create points array at exact length of points amount  */
-    points = (double *)malloc(n * dim * sizeof(double));
-    if (!points)
-    { /* Allocation memory problem. */
-        printf("%s\n", "An Error Has Occured");
-        assert(0);
-    }
-
-
-    /* fill points array */
-    nCounter = 0;
-    rewind(file); /* getting to head of file for re-scanning */
-	while (fgets(line, sizeof(line), file))
-    {
-        /* get first token */
-        token = strtok(line, ",");
-
-        /* walk through other tokens */
-		dimCounter = 0;
-        while (token != NULL)
-        {
-			
-			points[nCounter*dim + dimCounter] = atof(token);
-			
-            dimCounter += 1;
-            token = strtok(NULL, ",");
-        }
-        nCounter += 1;
-    }
-    fclose(file);
-
-    /*--------------- divided into goals cases ---------------*/
-
-    if (!strcmp(goal, "jacobi"))
-    {
-        /* creating matrix of first k eigenvectors */
-        U = (double *)calloc((n + 1) * n, sizeof(double));
-        if (!U)
-        {
-            printf("%s\n", "An Error Has Occured");
-            assert(0);
-        }
-
-        /* k matters only in spk case */
-        callingJacobiFromGoal(points, U, goal, k, n);
-        printFromGoal(U, n + 1, n);
-
-		if (results_array) {
-			memcpy(results_array, U, sizeof(double) * (n+1)*n);
-		}
-
-
-        free(points);
-        free(U);
-
-        return 0;
-    }
-
-    /* creating matrix for weighted adjacency function */
-    weighted = (double *)calloc(n * n, sizeof(double));
-    if (!weighted)
-    {
-        printf("%s\n", "An Error Has Occured");
-        assert(0);
-    }
-    WeightedAdjacencyMatrixFromPoints(points, n, dim, weighted);
-
-    if (!strcmp(goal, "wam"))
-    {
-        printFromGoal(weighted, n, n);
-
-		if (results_array) {
-			memcpy(results_array, weighted, sizeof(double) * (n)*n);
-		}
-
-
-        free(points);
-        free(weighted);
-
-        return 0;
-    }
-
-    /* creating matrix for diagonalization function */
-    diagonal = (double *)calloc(n * n, sizeof(double));
-    if (!diagonal)
-    {
-        printf("%s\n", "An Error Has Occured");
-        assert(0);
-    }
-    diagonalMatrixFromW(weighted, n, diagonal);
-
-    if (!strcmp(goal, "ddg"))
-    {
-        printFromGoal(diagonal, n, n);
-
-		if (results_array) {
-			memcpy(results_array, diagonal, sizeof(double) * n*n);
-		}
-
-        free(points);
-        free(weighted);
-        free(diagonal);
-
-        return 0;
-    }
-
-    /* creating matrix for negative sqrt of diagonal function */
-    negativeSqrtDiag = (double *)calloc(n * n, sizeof(double));
-    if (!negativeSqrtDiag)
-    {
-        printf("%s\n", "An Error Has Occured");
-        assert(0);
-    }
-    negativeSqrtMatrix(diagonal, n, negativeSqrtDiag);
-
-    /* creating matrix for normalized graph laplacian function */
-    Lnorm = (double *)calloc(n * n, sizeof(double));
-    if (!Lnorm)
-    {
-        printf("%s\n", "An Error Has Occured");
-        assert(0);
-    }
-    normalizedGraphLaplacian(negativeSqrtDiag, weighted, n, Lnorm);
-
-    if (!strcmp(goal, "lnorm"))
-    {
-        printFromGoal(Lnorm, n, n);
-
-		if (results_array) {
-			memcpy(results_array, Lnorm, sizeof(double) * n * n);
-		}
-		
-        free(points);
-        free(weighted);
-        free(diagonal);
-        free(negativeSqrtDiag);
-        free(Lnorm);
-
-        return 0;
-    }
-
-    if (!strcmp(goal, "spk"))
-    {
-        /* creating matrix of first k eigenvectors */
-        U = (double *)calloc(n * n, sizeof(double));
-        if (!U)
-        {
-            printf("%s\n", "An Error Has Occured");
-            assert(0);
-        }
-
-        k = callingJacobiFromGoal(Lnorm, U, goal, k, n);
-
-        /* creating matrix for normalize eigenvectors matrix */
-        T = (double *)calloc(n * k, sizeof(double));
-        if (!T)
-        {
-            printf("%s\n", "An Error Has Occured");
-            assert(0);
-        }
-
-        renormalizingMatrixRow(U, n, k, T);
-		
-		/*
-		*result_to_save = (double*)malloc(sizeof(double) * n * k);
-		*/
-		if (results_array) {
-			memcpy(results_array, T, sizeof(double) * n * k);
-		}
-		
-		if (k_array) {
-			k_array[0] = k;
-		}
-
-
-        /* each row of T is a point in Rk, cluster them into k clusters
-        via the K-means algorithm. maxIter = 300. */
-
-        /* creating matrix for first k centroids */
-        initCentroids = (double *)calloc(k * k, sizeof(double));
-        if (!initCentroids)
-        {
-            printf("%s\n", "An Error Has Occured");
-            assert(0);
-        }
-
-        /* init first k centroids for kmeans */
-        for (i = 0; i < k*k; i++)
-        {
-            initCentroids[i] = T[i];
-        }
-
-        /* creating matrix for kmeans result */
-        kmeansResult = (double *)calloc(k * k, sizeof(double));
-        if (!kmeansResult)
-        {
-            printf("%s\n", "An Error Has Occured");
-            assert(0);
-        }
-
-        kmeans(n, k, k, 300, T, initCentroids, kmeansResult);
-
-        /* printing  */
-		printFromGoal(kmeansResult, k, k);
-
-        /* free & return */
-        free(points);
-        free(weighted);
-        free(diagonal);
-        free(negativeSqrtDiag);
-        free(Lnorm);
-        free(U);
-        free(T);
-        free(initCentroids);
-        free(kmeansResult);
-
-        return 0;
-    }
-    return 0;
-}
-
-int main(int argc, char *argv[])
-{
-	/* using in atoi when scanning args */
-    const char *arg = 0;
-    const char *fileName = 0;
-    const char *goal = 0;
-	int n=0, dim=0;
-    FILE *file;
-    char line[1000]; /* up to 1000 points and up to 10 features */
-
-    /*--------------- saving arguments ---------------*/
-
-    if (argc == 4)
-    {
-        goal = argv[2];
-        arg = argv[1];
-        fileName = argv[3];
-    }
-    else
-    { /* Amount of arguments is invalid */
-        printf("%s\n", "Invalid Input!");
-        assert(0);
-    }
-	
-	
-	file = fopen(fileName, "r");
-    while (fgets(line, sizeof(line), file))
-    {
-        n++;
-        if (dim == 0)
-			dim = commasCount(line) + 1;
-    }
-	fclose(file);
-
-	return do_main(arg, goal, fileName, 0, 0);
-}
-
-
