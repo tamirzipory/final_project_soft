@@ -5,6 +5,7 @@ module = Extension(
             sources=["spkmeans.c", "kmeans.c", "spkmeansmodule.c"])
 
 setup(name='my_spkmeans',
+    author="Tamir Zipory",
     version='1.0',
     description='spkmeans C implementation',
     ext_modules=[module]

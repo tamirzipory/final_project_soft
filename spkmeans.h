@@ -28,8 +28,7 @@
 #define SPK 5
 #define SPK_EX2 6
 
-enum Goal
-{
+enum Goal{
   wam_g = 1,
   ddg_g = 2,
   lnorm_g = 3,

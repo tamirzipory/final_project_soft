@@ -32,6 +32,14 @@ def print_output(mat_from_fit, N, goal):
             output_res += "\n"
     print(output_res)
 
+def handle_errors():
+    print("An Error Has Occurred")
+    sys.exit()
+    
+def handle_errors_input():
+    print("Invalid Input!")
+    sys.exit()
+
 # Recieves file's name
 # Returns data's matrix, N (=number of points/ number of rows), D (=point's dimension/ number of cols)
 def get_goal_input(filename):
@@ -39,8 +47,7 @@ def get_goal_input(filename):
         data = pd.read_csv(filename, header=None)
         return (data.to_numpy(), data.shape[0], data.shape[1])
     except:
-        print("An Error Has Occurred")
-        sys.exit()
+        handle_errors()
 
 # Recieves list (created by calling fit from C), K- number of clusters, D- datapoint's dimension, and list of centroid's indexs chosen by kmeans++
 # Prints the list (this function is called only in case of goal= spk_ex2)
@@ -68,8 +75,7 @@ def print_output_spk(mat_from_fit, K, D, centroids_index_list):
 # On succsess returns K,goal
 def check_input(given_input, argLen):
     if (argLen != 4):
-        print("Invalid Input!")
-        sys.exit()
+        handle_errors_input()
     # check K: K isn't an integer or K is a negative integer (K needs to be greater then 1!)
     is_valid = given_input[1].isnumeric()
     if is_valid:
@@ -79,8 +85,7 @@ def check_input(given_input, argLen):
         is_valid = given_input[2] in [curr_goal.name for curr_goal in Goal]
 
     if not is_valid:
-        print("Invalid Input!")
-        sys.exit()
+        handle_errors_input()
 
     return ((int)(given_input[1]), Goal[given_input[2]])
 
@@ -138,20 +143,19 @@ def call_fit_ex2(N, K, dimension, data_points, centroids, goal):
         final_centroids = my_spkmeans.fit(N, K, dimension, data_points, goal.value, centroids)
         return final_centroids
     except:
-        print("An Error Has Occurred")
-        sys.exit()
+        handle_errors()
 ''' ========================= DONE spk from ex 2 ========================='''
 
 
 def main(argv):
     '''=========================Check input and Set arguments========================='''
-    argLen = len(argv)
-    K, goal = check_input(argv, argLen)
+    inputs = argv
+    inputs_len = len(inputs)
+    K, goal = check_input(argv, inputs_len)
     data_points_array, N, D = get_goal_input(argv[3])
 
     if K > N:
-        print("Invalid Input!")
-        sys.exit()
+        handle_errors_input()
 
     '''=========================run goal========================='''
     try:
@@ -168,8 +172,7 @@ def main(argv):
             print_output_spk(call_fit_ex2(N, K, D,goal_matrix, centroids, goal), K, D, centroids_index)
 
     except:
-        print("An Error Has Occurred")
-        sys.exit()
+        handle_errors()
 
 
 if __name__ == '__main__':

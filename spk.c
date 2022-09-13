@@ -1,257 +1,109 @@
-#define eps pow(10, -5)
-#include "spkmeans.h"
+double **spk_algo(double **lnorm, int N, int *K)
+{ /* Called after steps 1-2 have been made*/
+    double **jacobi_output, **eigenvectors, **T, **sort_transpose;
 
-/*
-Musn't to compile it! it's only fot the organization of the code!
-*/
+    jacobi_output = (double **)jacobi_algo(N, lnorm);
+    if (jacobi_output == NULL)
+        return NULL;
 
+    /* Transpose on eigenvectors- to make the sort easier*/
+    eigenvectors = jacobi_output + 1; /* Jacobi without eigenvalues*/
+    transpose(eigenvectors, N);
 
-/*the comparator for the qsort*/
-int compare_eigen(const void *a, const void *b){
-    struct pair *A, *B;
-    A = (pair *)a;
-    B = (pair *)b;
-    return A->eigenValue == B->eigenValue ? A->index-B->index : A->eigenValue > B-> eigenValue ? 1 : -1;
+    /* in sort_transpose jacobi_output is being freed, there is no use in it again!*/
+    sort_transpose = sort_matrix_values(jacobi_output, N);
+    if (sort_transpose == NULL)
+        return NULL;
+
+    /* The Eigengap Heuristic- was told not to handle a case where k=1*/
+    if (*K == 0)
+        eigengap_heuristic(sort_transpose[0], N, K);
+
+    /* Transpose on eigenvectors- get them to the right shape (vector in columns)*/
+    eigenvectors = sort_transpose + 1; /* sort_transpose without eigenvalues*/
+    transpose(eigenvectors, N);
+
+    /* eigenvectors points to the start of eigenvectors, we will use only the first K vectors (first K columns) as U
+     * and update eigenvectors (by renormalizing each of U’s rows) to be T */
+    T = set_T(eigenvectors, N, *K);
+    free_memory(sort_transpose, N + 1);
+
+    return T;
 }
 
-double **calloc_mat(int rows){
-    double** ret = (double**) calloc(rows, rows*sizeof(double));
-    catch_err_of_int(ret != NULL);
-    return ret;
-}
-
-double ** init_double_mat(int rows){
-    int i;
-    double **ret;
-    ret = calloc_mat(rows);
-    for(i = 0; i < rows; i++){
-        ret[i] = (double *) calloc(rows, sizeof(double));
-        catch_err_of_int(ret[i] != NULL);
+/* Receives a jacobi's matrix
+ * Sort first row and rows 1 to N according to the eigenvalues in first row */
+double **sort_matrix_values(double **mat, int N)
+{
+    int i, j, max_index;
+    double max_value;
+    double **sort_mat = matrix_allocation(N + 1, N);
+    if (sort_mat == NULL){
+        free_memory(mat, N + 1);
+        return NULL;
     }
-    return ret;
-}
-
-void sortpairs(){
-    int i;
-    pairs = (pair *)calloc(vector_num, vector_num * sizeof(pair));
-    catch_err_of_int(pairs != NULL);
-    for (i = 0; i < vector_num; i++){
-        pairs[i].index = i;
-        pairs[i].eigenValue = eigenValues[i];
-    }
-
-    qsort(pairs, vector_num, sizeof(pair), compare_eigen);
-    for (i = 0; i < vector_num; i++)
-        eigenValues[i] = pairs[i].eigenValue;  
-}
-
-
-
-int eigengapHeuristic(){
-    int i, maxIndex, k = 0;
-    double maxGap = -1.0;
-    double *eigenGaps;
-    calc_jacobi_patterm(Lnorm());
-    sortpairs();
-    eigenGaps = (double *)calloc(vector_num - 1, sizeof(double));
-    for (i = 0; i < vector_num - 1; i++)
-        eigenGaps[i] = fabs(eigenValues[i] - eigenValues[i + 1]);
-    maxIndex = (int)floor(vector_num / 2);
-    for (i = 0; i < maxIndex; i++){
-        if (eigenGaps[i] > maxGap){
-            maxGap = eigenGaps[i];
-            k = i;
-        }
-    }
-    free(eigenGaps);
-    return k + 1;
-}
-
-void create_T_mat(){ /*using vectors_mat*/
-    int i, j;
-    double sum;
-    /* Transpose vectors_mat */
-    get_t_mat(vectors_mat);
-    the_U_mat = (double **)calloc(vector_num, k * sizeof(double));
-    catch_err_of_int(the_U_mat != NULL);
-    for (i = 0; i < vector_num; i++){
-        the_U_mat[i] = (double *)calloc(k, sizeof(double));
-        catch_err_of_int(the_U_mat[i] != NULL);
-        for (j = 0; j < k; j++)
-            the_U_mat[i][j] = vectors_mat[(pairs[j]).index][i];
-        
-    }
-    /*normalizing the_U_mat*/
-    for (i = 0; i < vector_num; i++){
-        sum = 0;
-        for (j = 0; j < k; j++)
-            sum += (the_U_mat[i][j]) * (the_U_mat[i][j]);
-        
-        sum = sqrt(sum);
-        if (sum != 0){
-            for (j = 0; j < k; j++)
-                the_U_mat[i][j] = (the_U_mat[i][j]) / sum; 
-        }
-    }
-    the_T_mat = the_U_mat; /* the_T_mat is a normalized the_U_mat*/
-
-    /*
-    to check the T-
-    printf("here is the_T_mat\n");
-   print_mat(the_T_mat, vector_num, k);
-    printf("\nhere is the_T_mat\n");
-    */
-}
-
-void init_centroids(int k){
-    int i, j, z;
-    catch_err_of_int(k < vector_num);
-    centroids = (double **)calloc(k, vector_len * sizeof(double));
-    catch_err_of_int(centroids != NULL);
-    for (i = 0; i < k; i++){
-        centroids[i] = (double *)calloc(vector_len, sizeof(double));
-        catch_err_of_int(centroids[i] != NULL);
-    }
-    for (z = 0; z < k; z++){
-        for (j = 0; j < vector_len; j++)
-            centroids[z][j] = vector_list[z][j];
-        
-    }
-    clusters = (double **)calloc(k, sizeof(double *));
-    assert_double_mat(clusters);
-}
-
-double get_distance(double *vector_1, double *vector_2){
-    double ret;
-    int i;
-    ret = 0;
-    for (i = 0; i < vector_len; i++)
-        ret+=pow(vector_1[i]-vector_2[i], 2);
-    
-    return ret;
-}
-
-int min_dist_centroid(double *v){
-    double min, temp;
-    int ind, i;   
-    min= get_distance(v, centroids[0]);
-    ind = 0;
-    for (i = 0; i < k; i++){
-        temp = get_distance(v, centroids[i]);
-        if (temp < min){
-            min = temp;
-            ind = i;
-        }
-    }
-    return ind;
-}
-
-void vector_to_cluster(int k){
-    int *clusterssizes; 
-    int ind, i;
-    free(clustersindexes);
-    clustersindexes = (int *)calloc(k, sizeof(int));
-    catch_err_of_int(clustersindexes != NULL);
-    clusterssizes = (int *)calloc(k, sizeof(int));
-    catch_err_of_int(clusterssizes != NULL);
-    for (i = 0; i < k; i++)
-        clusterssizes[i] = 100;
-    for (i = 0; i < k; i++){
-        free(clusters[i]);
-        clusters[i] = (double *)calloc(100, sizeof(double));
-        catch_err_of_int(clusters[i] != NULL);
-    }
-    for (i = 0; i < vector_num; i++){
-        ind = min_dist_centroid(vector_list[i]);
-        if (clustersindexes[ind] > ((clusterssizes[ind]) / 2)){
-            clusters[ind] = (double *)realloc(clusters[ind], 2 * clusterssizes[ind] * sizeof(double));
-            clusterssizes[ind] *= 2;
-        }
-        clusters[ind][clustersindexes[ind]] = i;
-        clustersindexes[ind]++; /*increase number of vectors in specified cluster*/
-    }
-    free(clusterssizes);
-}
-
-double *cluster_to_centroid(int index){
-    int i, j, vector_index, num;
-    num = clustersindexes[index]; /* number of vectors in given cluster */
-    double *res = (double *)calloc(vector_len, sizeof(double));
-    catch_err_of_int(res != NULL);
-    if (num != 0){
-        for (i = 0; i < vector_len; i++){
-            for (j = 0; j < num; j++){
-                vector_index = (int)clusters[index][j]; /* not actual vector but index in vector_list */
-                res[i] += vector_list[vector_index][i]; /*relevant cluster*/
+    for (i = 0; i < N; i++){
+        max_index = -1;
+        max_value = -1;
+        for (j = 0; j < N; j++){
+            /* Found new max*/
+            if (max_value < mat[0][j])
+            {
+                max_index = j;
+                max_value = mat[0][j];
             }
         }
-
-        for (i = 0; i < vector_len; i++)
-            res[i] = res[i] / (num);
-        
+        /* Place the i'th eigenvalue in the i'th cell and it's correspoond eigenvectors in line number i+1 */
+        sort_mat[0][i] = max_value;
+        sort_mat[i + 1] = mat[max_index + 1];
+        mat[0][max_index] = -1;
     }
-    else{
-        for (i = 0; i < vector_len; i++)
-            res[i] = centroids[index][i];   
-    }
-    return res;
+    /* free (mat=jacobi_output) */
+    free(mat[0]);
+    free(mat);
+    return sort_mat;
 }
 
-int areequal(double *arr1, double *arr2){
-    int i, ret;
-    for (i = 0; i < vector_len; i++){
-        if (arr1[i] != arr2[i])
-            return 0;
+/* Receives U (created by largest eigenvectors of jacobi), N- number of rows, K- number of columns
+ * Returns T- by renormalizing each of U’s rows to have unit length */
+double **set_T(double **U, int N, int K){
+    int i, j, q;
+    double sum = 0;
+
+    double **T = matrix_allocation(N, K);
+    if (T == NULL)
+        return NULL;
+
+    for (i = 0; i < N; i++)
+    {
+        for (j = 0; j < K; j++)
+        {
+            /* Calculate sum once for each new row!*/
+            if (j == 0)
+            {
+                sum = 0;
+                for (q = 0; q < K; q++)
+                    sum += pow(U[i][q], 2);
+            }
+            T[i][j] = (sum != 0) ? (U[i][j] / sqrt(sum)) : 0;
+        }
     }
-    ret = 1;
-    return ret;
+    return T;
 }
 
-int update_centroids(){
-    int x, i, j, is_changed;
-    is_changed = 0;
-    for (i = 0; i < k; i++){
-        double *newcentroid, *ret;
-        newcentroid = (double *)calloc(vector_len, sizeof(double));
-        catch_err_of_int(newcentroid != NULL);
-        ret = cluster_to_centroid(i);
-        for (j = 0; j < vector_len; j++)
-            newcentroid[j] = ret[j];
-        if (areequal(centroids[i], newcentroid) == 0) {is_changed = 1;}
-        for (x = 0; x < vector_len; x++)
-            centroids[i][x] = newcentroid[x];
-        free(newcentroid);
-        free(ret);
-    }
-    return (is_changed != 0);
-}
+/* Receives eigenvalues (in decreasing order), N- number of values, K- number of clusters
+ * Calculate K as described (Eigengap Heuristic algorithm) */
+void eigengap_heuristic(double *eigenvalues, int N, int *K)
+{ /* (Assumption) lnorm formed as a decreasing ordered eigenvalues*/
+    int i;
+    double curr_max_gap = DBL_MIN;
 
-double **calccentroids(int max_iter){
-    int count_var, isequal;
-    catch_err_of_int(clusters_num == 0 || clusters_num > 0);
-    count_var = 0, isequal = 1;
-    clusters = (double **)calloc(clusters_num, sizeof(double *)); /* originally in init_centroids */
-    while (count_var < max_iter && isequal == 1){
-        vector_to_cluster(clusters_num);
-        isequal = update_centroids();
-        count_var++;
+    /* lmda(1)= E[0]>=lmda(2)=E[1]>=...>=lmda(n/2)=E[(N/2)-1]>=0*/
+    for (i = 1; i <= (int)(N / 2); i++)
+    {
+        if (curr_max_gap < fabs(eigenvalues[i - 1] - eigenvalues[i])){
+            curr_max_gap = fabs(eigenvalues[i - 1] - eigenvalues[i]);
+            *K = i;
+        }
     }
-    free_full_array_by_size(clusters, clusters_num);
-    return centroids;
-}
-void fullSpectral(){
-    int count_var, isequal, max_iter = 300; 
-    count_var = 0, isequal = 1;
-    k = k == 0 ? eigengapHeuristic() : k;
-    vector_len = k;
-    createthe_T_mat();
-    free_full_array_by_size(vector_list, vector_num);
-    vector_list = the_U_mat;
-    init_centroids(k);
-    while (count_var < max_iter && isequal == 1){
-        vector_to_cluster(k);
-        isequal = update_centroids();
-        count_var++;
-    }
-    
 }
