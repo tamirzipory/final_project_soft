@@ -193,29 +193,12 @@ void calc_curr_P(int max_iter, double **the_p_mat, int i, int j, double c, doubl
 
     for (k = 0; k < max_iter; ++k){
         for (l = 0; l < max_iter; ++l){
-            if (k == l){
-             if (k == i){
-                 the_p_mat[k][l] = c;
-            }
-            if(l == j){
-                the_p_mat[k][l] = c;
-            }
-            else{
-                the_p_mat[k][l] = 1;
-            }
-        }
-
+            if (k == l)
+                the_p_mat[k][l] = (k == i || l == j) ? c : 1; /* 1 on the diagonal*/
             else if (k == j && l == i)
                 the_p_mat[k][l] = -s;
-            else{
-                if(k == i && l == j){
-                    the_p_mat[k][l] = s;
-                }
-                else{
-                    the_p_mat[k][l] = 0;
-                }
-            }
-                
+            else
+                the_p_mat[k][l] = (k == i && l == j) ? s : 0;
         }
     }
 }
