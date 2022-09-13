@@ -94,59 +94,66 @@ void calc_A1(int len_mat, double **A, double d1, double d2, int i, int j, int *r
 
 double calc_off_diag(int len_mat, double **A){
     int i, j;
-    double off_A_squared = 0;
-
-    for (i = 0; i < len_mat; i++){
-        for (j = 0; j < len_mat; j++)
-    
-            if(i != j){
-                off_A_squared = off_A_squared+(A[i][j] * A[i][j]);
-            }
-            
-        
+    double squar = 0;
+    i = 0;
+    while(i < len_mat){
+        j = 0;
+        while(j < len_mat){
+            if(i != j)
+                squar = (A[i][j] * A[i][j]) + squar;
+            j++;
+        }
+        i++;
     }
-    return off_A_squared;
+    return squar;
 }
 
- /* Updates mat to be get_mat_transed */
 void get_mat_transe(double **mat, int N){
     int i, j;
-    double temp;
-    for (i = 0; i < N; i++){
-        for (j = i + 1; j < N; j++){
-            temp = mat[i][j];
+    double t;
+    i = 0;
+    while(i < N){
+        j = i +1;
+        while(j < N){
+            t = mat[i][j];
             mat[i][j] = mat[j][i];
-            mat[j][i] = temp;
+            mat[j][i] = t;
+            j++;
         }
+        i++;
     }
 }
 
 /*calculate A tag according the file in the moudle*/
-void A_to_A_tag(int N, double **A, int *index_of_i, int *index_of_j){
-    int q, l;
-    double maximum = -DBL_MAX;
-    for (q = 0; q < N; ++q){
-        for (l = q + 1; l < N; ++l){
-            
-            if (fabs(A[q][l]) > maximum){
-                maximum = fabs(A[q][l]);
-                *index_of_i = q;
-                *index_of_j = l;
+void A_to_A_tag(int N, double **A, int *i, int *j){
+    int in1, in2;
+    double max = -DBL_MAX;
+    in1 = 0;
+    while(in1 < N){
+         for (in2 = in1 + 1; in2 < N; ++in2){
+            if (fabs(A[in1][in2]) > max){
+                max = fabs(A[in1][in2]);
+                *i = in1;
+                *j = in2;
             }
         }
+        in1 = in1 +1;
     }
 }
 
 double calc_theta(double** mat, int i, int j){
-    return (mat[j][j] - mat[i][i]) / (2 * mat[i][j]);
+    double ret = (mat[j][j] - mat[i][i]) / (mat[i][j] * 2);
+    return ret;
 }
 
-double calc_t(int sign, double theta){
-    return (sign) / (fabs(theta) + sqrt((theta * theta) + 1));
+double calc_t(int s, double t){
+    double ret = s / (sqrt((t * t) + 1 + fabs(t)));
+    return ret;
 }
 
 double divide(double t){
-    return (1) / (sqrt(1 + (t * t)));
+    double ret = 1 / (sqrt((t * t) + 1));
+    return ret;
 }
 
 double calc_s(double t){
