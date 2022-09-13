@@ -1,18 +1,18 @@
-double **diagonal_matrix(double **adj_mat, int N){
+double **diagMat(double **mat, int len){
     int i, j;
     double sum;
-    double **diag_mat = matrix_allocation(N, N);
-    if (diag_mat == NULL)
+    double **diag = mat_alloc_by_row_col(len, len);
+    if (diag == NULL)
         return NULL;
-    
-    sum=0;
-    for (i = 0; i < N; i++){
+    sum = 0, i = 0;
+    while(i < len){
         sum = 0;
-        for (j = 0; j < N; j++){
-            sum += adj_mat[i][j];
-            diag_mat[i][j] = 0;
+        for (j = 0; j < len; j++){
+            sum = mat[i][j] + sum;
+            diag[i][j] = 0;
         }
-        diag_mat[i][i] = sum;
+        diag[i][i] = sum;
+        i++;
     }
-    return diag_mat;
+    return diag;
 }
