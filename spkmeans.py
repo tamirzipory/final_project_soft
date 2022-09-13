@@ -1,182 +1,179 @@
-
-import pandas as pd
-import numpy as np
 import sys
-import myspkmeans as mp
-from os.path import exists
-from enum import Enum
+import numpy as np
+import numpy.random
+import spkmeansmodule as kp
 
-class goals(Enum):
-    spk = "spk"
-    wam = "wam"
-    ddg = "ddg"
-    lnorm = "lnorm"
-    jacobi = "jacobi"
+np.random.seed(0)
 
-def print_err():
-    print("Invalid Input!")
-    
-def main():
-    inputs = sys.argv
-    np.random.seed(0)
-    max_iter = 300
-    assert len(inputs) == 4 or len(inputs) == 5, "can get only 4 or 5 params"
+
+def euclidean_dist(vector1, vector2):
+    """
+    Computes the euclidean distance between two given vectors.
+    """
+    dist = (vector1 - vector2) ** 2
+    return np.sqrt(sum(dist))
+
+
+def print_result(result, index, goal, n):
+    """
+    Prints the result according to the goal.
+    :param index: case goal == spk: an array of the chosen indices of the observations
+                                    chosen as the initial centroids.
+                  case goal == jacobi: an array of the eigenvalues of the matrix.
+                  other cases: None.
+    :param n: the row dimension of the result matrix.
+    """
+    if goal == "spk":
+        print(*index, sep=",")
+    elif goal == "jacobi":
+        index = [format(round(index[i], 4) + 0, '.4f') for i in range(len(index))]
+        print(*index, sep=",")
+
+    # formatting the output as the assignment requirements
+    result = ['%.4f' % result[i] for i in range(len(result))]
+    result = [result[i:i + n] for i in range(0, len(result), n)]
+    for i in range(len(result)):
+        print(*(result[i]), sep=",")
+
+
+def kmeans_pp(vectors, k):
+    """
+    Implantation of the k-means++ algorithm, as detailed in HW2.
+    :return: clusters - 2D matrix of the observations chosen as the initial centroids.
+             index - the indices of the chosen observations as initial centroids.
+    """
+    index = []  # contains the indices of the chosen observations
+
+    # choosing a random observation as the first centroid
+    clusters = np.zeros((k, len(vectors[0])), dtype="float")
+    first_cluster_index = np.random.choice(len(vectors))
+    index.append(first_cluster_index)
+    clusters[0] = np.copy(vectors[first_cluster_index])
+
+    # randomly choosing observations with a weighted probability,
+    # favoring a distant observation from the centroids we already chose
+    distances = np.full(len(vectors), sys.float_info.max)
+    i = 1
+    while i < k:
+        for t in range(len(vectors)):
+            for j in range(i):
+                dist = euclidean_dist(vectors[t], clusters[j])
+                if dist < distances[t]:
+                    distances[t] = dist
+        probabilities = distances / sum(distances)  # compute probabilities
+        chosen_index = int(np.random.choice(len(vectors), 1, True, probabilities))
+        clusters[i] = np.copy(vectors[chosen_index])
+        index.append(chosen_index)
+        i += 1
+    return clusters, index
+
+
+def k_legal(k):
+    """
+    Validation of the k given via line argument is in correct format.
+    """
+    if k - int(k) > 0 or (k != 0 and k <= 1):
+        print("Invalid Input!")
+        return False
+    return True
+
+
+def legal_goal(goal):
+    """
+    Validation of the goal given via line argument is in correct format.
+    """
+    goal_list = ["wam", "ddg", "lnorm", "jacobi", "spk"]
+    return goal in goal_list
+
+
+def execute_by_goal(vectors, goal):
+    """
+    Execution of goals wam, ddg, lnorm via calling the C extension
+    """
+    goal_to_function = {
+        "wam": kp.wam,
+        "ddg": kp.ddg,
+        "lnorm": kp.lnorm,
+    }
+    return goal_to_function[goal](len(vectors), len(vectors[0]), vectors.flatten().tolist())
+
+
+def create_vectors_from_file(file):
+    """
+    Form a 2D matrix containing the n given points in the file as rows
+    """
     try:
-         K = int(inputs[1])
-    except:
-        print_err()
-        assert(type(K) is not str)
-    if ((K < 0)):
-        print_err()
-        assert(K >= 0), "k must to be grater than zero"
-    goal = inputs[2]
-    if len(inputs) == 5:
-        assert inputs[2].isnumeric(), "max_iter must be an int"
-        assert max_iter >= 0, "max_iter must to be grater than zero"
-
-        max_iter = int(inputs[2])
-        goal = inputs[3]
-        file_name = inputs[2]
-    
-    if (not (goal in goals._value2member_map_)):
-        print_err()
-        assert(goal in goals._value2member_map_)
-    
-        
-    file_name = inputs[3]
-    file_exists = exists(file_name)
-    if(file_exists == False):
-        print_err()
-        exit(1)
-
-    vector_list = readfile(file_name) 
-    vector_list.index = vector_list.index.astype('int64')
-    vector_num = vector_list.shape[0]
-    vector_len = vector_list.shape[1]
-    second_vector_lst = vector_list.values.tolist()
-    
-    if (K == 0):
-        newK = mp.heuristic(second_vector_lst, vector_num, vector_len)
-        K = newK
-        
-    if (goal == "spk"):
-        new_vector_list = mp.fullSpectralPy(K, vector_num, second_vector_lst)
-        new_vector_list = pd.DataFrame(new_vector_list)
-        vector_num = new_vector_list.shape[0]
-        centroids_for_C, indices = init_centroids(
-            K, new_vector_list.values, new_vector_list.index, vector_num)  # new_vector_list
-        new_second_vector_lst = new_vector_list.values.tolist()
-        final_centroids = mp.fit(
-            centroids_for_C, new_second_vector_lst, max_iter, K)
-        output_centroids = mp.kmeans(
-            K, vector_num, vector_len, new_second_vector_lst, final_centroids)
-        converted_indexes = [str(elm) for elm in indices]
-        joined_indexes = ",".join(converted_indexes)
-        output_centroids = fix_mat_to_zeros(output_centroids)
-        if (joined_indexes != "44"):
-            print(joined_indexes)
-            print_mat(output_centroids)
-        else:
-            print("An Error Has Occured\n")
-    elif (goal == "wam"):
-        matrix = mp.WeightedAdjacencyMatrix(
-            second_vector_lst, vector_num, vector_len)
-        matrix = fix_mat_to_zeros(matrix)
-        print_mat(matrix)
-    elif (goal == "ddg"):
-        weighted_matrix = mp.WeightedAdjacencyMatrix(
-            second_vector_lst, vector_num, vector_len)
-        diagonal_matrix = mp.DiagonalDegreeMatrix(
-            weighted_matrix, vector_num, vector_len)
-        diagonal_matrix = fix_mat_to_zeros(diagonal_matrix)
-        print_mat(diagonal_matrix)
-
-    elif (goal == "lnorm"):
-        matrix = mp.NormalizedGraphLaplacian(
-            second_vector_lst, vector_num, vector_len)
-        matrix = fix_mat_to_zeros(matrix)
-        print_mat(matrix)
-
-    elif (goal == "jacobi"):
-        eigenvalues, eigenvectors = mp.Jacobi(
-            second_vector_lst, vector_num, vector_len)
-        for i in range(len(eigenvalues)):      # erasing minus zeros for eigenvalues
-            if ((eigenvalues[i] < 0) and (eigenvalues[i] > -0.00005)):
-                eigenvalues[i] = 0
-        print(",".join(["%.4f" % float(i) for i in eigenvalues]))
-        eigenvectors = fix_mat_to_zeros(eigenvectors)
-        print_mat(eigenvectors)
+        vectors = np.genfromtxt(file, delimiter=",")
+        return vectors
+    except IOError:
+        print("Invalid Input!")
+        return None
 
 
-def print_last(matrix, i):
-    print(",".join(["%.4f" % float(i) for i in matrix[i]]), end="")
-    
-def print_between(matrix, i):
-    print(",".join(["%.4f" % float(i) for i in matrix[i]]))
-
-def print_mat(matrix):
-    for i in range(len(matrix)):
-        if i == (len(matrix)-1):
-            print_last(matrix, i)
-        else:
-            print_between(matrix, i)
-            
-def init_centroids(k, vector_list, vector_list_ind, vector_num):
-    np.random.seed(0)
-    if (not (k < vector_num)):
-        print_err()
-        assert(k < vector_num)
-    dist = [0 for i in range(vector_num)]
-    second_centroids = [0 for i in range(k)] 
-    centroids_index = [0 for i in range(k)]
-    # first centroid
-    rand_index = np.random.choice(vector_num)
-    second_centroids[0] = vector_list[rand_index]
-    centroids_index[0] = vector_list_ind[rand_index]
-    z = 1
-    while z < k:
-        # calc dist
-        for i in range(vector_num):
-            if z == 1:
-                dist[i] = distance(vector_list[i], second_centroids[0])
-            else:
-                dist[i] = min_dist_centroid(
-                    vector_list, i, second_centroids, z, dist)
-        # calc prob
-        sum = np.sum(dist)
-        prob = dist/sum
-        # find new centroid
-        chosen_ind = np.random.choice(vector_num, p=prob)
-        second_centroids[z] = vector_list[int(chosen_ind)]
-        centroids_index[z] = vector_list_ind[int(chosen_ind)]
-        z += 1
-    # convert to python lists
-    for i in range(k):
-        second_centroids[i] = second_centroids[i].tolist()
-    return second_centroids, centroids_index
+def goal_is_spk(vectors, k):
+    """
+    Implantation of the spk algorithm via calling the C extension.
+    :param k: case k == 0 - first determine k via the Eigengap Heuristic,
+    :return: clusters - 2D matrix of the k final clusters
+            chosen_index - the indices of the chosen observations as initial centroids.
+            n - the row dimension of clusters.
+    """
+    n = len(vectors[0])
+    if k == 0:
+        k, vectors = kp.spk(len(vectors), len(vectors[0]), vectors.flatten().tolist())
+        if vectors is None or k <= 1:
+            return None, None, None
+        vectors = np.array(vectors).reshape(int(len(vectors) / k), k)
+        n = int(k)
+    k = int(k)
+    init_clusters, chosen_index = kmeans_pp(vectors, k)
+    # implement the k-means algorithm
+    clusters = kp.fit(k, len(vectors), len(vectors[0]), vectors.flatten().tolist(), init_clusters.flatten().tolist())
+    return clusters, chosen_index, n
 
 
-def readfile(filename):
-    file = pd.read_csv(filename, header=None)
-    ret = file
-    return ret
+def main():
+    # Reading user CMD arguments and validation that are in correct format.
+    cmd_input = sys.argv
+    if len(cmd_input) != 4:
+        print("Invalid Input!")
+        return 1
+    k = float(cmd_input[1])
+    goal = cmd_input[2]
+    file_name = cmd_input[3]
+    if not legal_goal(goal):
+        print("Invalid Input!")
+        return 1
 
-def distance(vector_1, vector_2):
-    return np.sum((vector_1-vector_2)**2)
+    vectors = create_vectors_from_file(file_name)
+    if vectors is None:
+        return 1
+
+    # in case of 'spk' will contain the chosen indices of the observations points.
+    # in case of 'jacobi' will contain the eigenvalues of the matrix.
+    # other cases will stay None.
+    chosen_index = None
+
+    # the row dimension of the result matrix. may change in case of 'spk'.
+    n = len(vectors)
+
+    # Execution by goal.
+    if goal == "spk":
+        if not k_legal(k):
+            return 1
+        result, chosen_index, n = goal_is_spk(vectors, k)
+    elif goal == "jacobi":
+        result, chosen_index = kp.jacobi(n, len(vectors[0]), vectors.flatten().tolist())
+    else:
+        result = execute_by_goal(vectors, goal)
+
+    if result is None:
+        print("An Error Has Occurred", end ="")
+        return 1
+
+    print_result(result, chosen_index, goal, n)
+    return 0
 
 
-def min_dist_centroid(vector_list, i, second_centroids, z, dist):
-    return min(distance(vector_list[i], second_centroids[z-1]), dist[i])
-
-
-def fix_mat_to_zeros(matrix):
-    for i in range(len(matrix)):
-        for j in range(len(matrix[0])):
-            if ((matrix[i][j] > -0.00005) and (matrix[i][j] < 0)):
-                matrix[i][j] = 0
-    return matrix
-
-
-if(__name__ == "__main__"):
+if __name__ == '__main__':
     main()
-print("")
