@@ -1,7 +1,7 @@
 double **calc_jacob(int len_mat, double **A){
     int counter, i, j, ret;
-    double c, s, first_A_mat, second_A_mat; 
-    double **V_mat, **the_p_mat, **jacobi_result, **finish_V_mat;
+    double d1, d2, first_A_mat, second_A_mat; 
+    double **V_mat, **the_p_mat, **mat_of_jacobi, **finish_V_mat;
     double *eigenvalues; 
     
     /* Memory allocations- if matrix_allocation returns NULL-
@@ -16,17 +16,14 @@ double **calc_jacob(int len_mat, double **A){
         return NULL;
     }
 
-    eigenvalues = malloc(len_mat * sizeof(double)); /*len of diagonal of squared matrix (NxN) is always N*/
+    eigenvalues = calloc(len_mat, sizeof(double)); /*len of diagonal of squared matrix (NxN) is always N*/
     if (eigenvalues == NULL){
         free_memory(V_mat, len_mat);
         free_memory(the_p_mat, len_mat);
         return NULL;
     }
 
-    counter = 0;
-    ret=1;
-    first_A_mat = 0.00001 + 1;
-    second_A_mat = 0;
+    counter = 0, ret=1, first_A_mat = 1.00001, second_A_mat = 0;
 
     /* Will run up to 100 iterations if it doesn't reach convergence before + in the first iteration, convergence is not relevant*/
     while ((100 > counter) && ((first_A_mat - second_A_mat > 0.00001) || (counter == 0))){
@@ -38,29 +35,36 @@ double **calc_jacob(int len_mat, double **A){
         if (A[i][j] == 0)
             break;
 
-        get_params(A, i, j, &c, &s);            
-        calc_curr_P(len_mat, the_p_mat, i, j, c, s);      
-        calc_A1(len_mat, A, c, s, i, j, &ret); 
+        get_params(A, i, j, &d1, &d2);            
+        calc_curr_P(len_mat, the_p_mat, i, j, d1, d2);      
+        calc_A1(len_mat, A, d1, d2, i, j, &ret); 
 
-        finish_V_mat=V_mat;
-        V_mat = calc_mul(len_mat, V_mat, the_p_mat); 
+        finish_V_mat=V_mat, V_mat = calc_mul(len_mat, V_mat, the_p_mat); 
         free_memory(finish_V_mat,len_mat);
-        if (ret == 0 || V_mat == NULL){ 
+
+        if(ret == 0){
             free(eigenvalues);
             free_memory(the_p_mat, len_mat);
             return NULL;
         }
+
+        if (V_mat == NULL){ 
+            free(eigenvalues);
+            free_memory(the_p_mat, len_mat);
+            return NULL;
+        }
+
         second_A_mat = calc_off_diag(len_mat, A);
     }
 
     get_eigenvalues_from_A1(eigenvalues, len_mat, A);           
-    jacobi_result = jacobi_eigen_merge(len_mat, eigenvalues, V_mat); 
+    mat_of_jacobi = jacobi_eigen_merge(len_mat, eigenvalues, V_mat); 
 
     free_memory(V_mat, len_mat);
     free_memory(the_p_mat, len_mat);
     free(eigenvalues);
 
-    return jacobi_result;
+    return mat_of_jacobi;
 }
 
 
@@ -125,14 +129,13 @@ void get_mat_transe(double **mat, int N){
     }
 }
 
-/* Receives matrix A, N- number of rows/columns and a pointer to the numbers that represent i,j
- * Updates i and j to be the locations of the largest ABSOLUTE value (the pivot) */
+/*calculate A tag according the file in the moudle*/
 void A_to_A_tag(int N, double **A, int *index_of_i, int *index_of_j){
     int q, l;
     double maximum = -DBL_MAX;
     for (q = 0; q < N; ++q){
         for (l = q + 1; l < N; ++l){
-            /* Search for the off-diagonal element with the largest absolute value */
+            
             if (fabs(A[q][l]) > maximum){
                 maximum = fabs(A[q][l]);
                 *index_of_i = q;
@@ -182,18 +185,37 @@ void get_params(double **A, int i, int j, double *point_1, double *point_2){
 
 /* Receives matrix the_p_mat, N- number of rows/columns, i,j- the location of the pivot, and c,s
  * Updates P according to the given instructions */
-void calc_curr_P(int N, double **the_p_mat, int i, int j, double c, double s){
+void calc_curr_P(int max_iter, double **the_p_mat, int i, int j, double c, double s){
     int k, l;
     /* P[i][i]=P[j][j]=c, P[i][j]=s, P[j][i]=-s 
      * on diagonal= 1, else=0*/
-    for (k = 0; k < N; ++k){
-        for (l = 0; l < N; ++l){
-            if (k == l)
-                the_p_mat[k][l] = (k == i || l == j) ? c : 1; /* 1 on the diagonal*/
+  
+
+    for (k = 0; k < max_iter; ++k){
+        for (l = 0; l < max_iter; ++l){
+            if (k == l){
+             if (k == i){
+                 the_p_mat[k][l] = c;
+            }
+            if(l == j){
+                the_p_mat[k][l] = c;
+            }
+            else{
+                the_p_mat[k][l] = 1;
+            }
+        }
+
             else if (k == j && l == i)
                 the_p_mat[k][l] = -s;
-            else
-                the_p_mat[k][l] = (k == i && l == j) ? s : 0;
+            else{
+                if(k == i && l == j){
+                    the_p_mat[k][l] = s;
+                }
+                else{
+                    the_p_mat[k][l] = 0;
+                }
+            }
+                
         }
     }
 }
@@ -208,14 +230,15 @@ void get_eigenvalues_from_A1(double *eigenvalues, int N, double **A1){
 
 /* Receives matrix eigenVectors, N- number of rows/columns and an array of the eigenvalues
  * Returns matrix with first row- eigenValues, next rows- eigenVectors */
-double **jacobi_eigen_merge(int N, double *eigenValues, double **eigenVectors){
+double **jacobi_eigen_merge(int len, double *eigenValues, double **eigenVectors){
     double **res = NULL;
     int i;
-    res = matrix_allocation(N + 1, N);
+    int plus_one = len+1;
+    res = matrix_allocation(plus_one, len);
     if (res == NULL)
         return NULL;
-    for (i = 0; i < N; i++)
+    for (i = 0; i < len; i++)
         res[0][i] = eigenValues[i];
-    matrix_copy(N, N, &res[1], eigenVectors);
+    matrix_copy(len, len, &res[1], eigenVectors);
     return res;
 }
