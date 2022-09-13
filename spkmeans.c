@@ -1167,18 +1167,18 @@ int main(int argc, char *argv[])
                 printf("%0.4f,", A[i][i]);
             }
         }
-        printf("--------------------------END JACOBI-1 =========");
+       
         transpMat(VMat);
-        printf("--------------------------END JACOBI -2 ======");
+       
         printMat(VMat, vector_num, vector_num);
-        printf("--------------------------END JACOBI -3 ========");
+        
         freearray(VMat, vector_num);
-        printf("--------------------------END JACOBI -4 -=======");
+        
         free(eigenValues);
-        printf("--------------------------END JACOBI --5 ========");
+        
         /* segmantion fault ??? */
         freearray(vector_list, vector_num);
-        printf("--------------------------END JACOBI --6 ========");
+        
     }
     else
     {
