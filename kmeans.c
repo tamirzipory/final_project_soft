@@ -39,7 +39,7 @@ int kMeans(int len, int in1, double **points, double **cent, int dim){
         }
         i = 0;
         while(i < len){
-            points[i][dim] = clust;
+            clust = points[i][dim];
             for (j = 0; j < dim; j++)
                 cent[clust - 1][j] = points[i][j] + cent[clust - 1][j];  
             i++;
