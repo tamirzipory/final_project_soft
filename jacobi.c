@@ -125,18 +125,19 @@ void get_mat_transe(double **mat, int N){
 
 }
 
-void A_to_A_tag(int N, double **A, int *index_of_i, int *index_of_j){
-    int q, l;
+void A_to_A_tag(int len, double **mat, int *index_of_i, int *index_of_j){
+    int in1, in2;
     double maximum = -DBL_MAX;
-    for (q = 0; q < N; ++q){
-        for (l = q + 1; l < N; ++l){
-            
-            if (fabs(A[q][l]) > maximum){
-                maximum = fabs(A[q][l]);
-                *index_of_i = q;
-                *index_of_j = l;
+    in1 = 0;
+    while(in1 < len){
+        for (in2 = in1 + 1; in2 < len; ++in2){
+            if (maximum < fabs(mat[in1][in2])){
+                maximum = fabs(mat[in1][in2]);
+                *index_of_i = in1;
+                *index_of_j = in2;
             }
         }
+        in1++;
     }
 }
 
@@ -195,23 +196,26 @@ void calc_curr_P(int max_iter, double **the_p_mat, int i, int j, double d1, doub
     }
 }
 
-void get_eigenvalues_from_A1(double *eigenvalues, int N, double **A1){
-    int i;
-    for (i = 0; i < N; ++i)
-        eigenvalues[i] = A1[i][i];
+void get_eigenvalues_from_A1(double *values, int len, double **mat){
+    int i = 0;
+    while( i < len){
+        values[i] = mat[i][i];
+        i++;
+    }
 }
 
-/* Receives matrix eigenVectors, N- number of rows/columns and an array of the eigenvalues
- * Returns matrix with first row- eigenValues, next rows- eigenVectors */
-double **jacobi_eigen_merge(int len, double *eigenValues, double **eigenVectors){
-    double **res = NULL;
+double **jacobi_eigen_merge(int len, double *values, double **vectors){
+    double **ret = NULL;
     int i;
     int plus_one = len+1;
-    res = matrix_allocation(plus_one, len);
-    if (res == NULL)
+    ret = matrix_allocation(plus_one, len);
+    if (ret == NULL)
         return NULL;
-    for (i = 0; i < len; i++)
-        res[0][i] = eigenValues[i];
-    matrix_copy(len, len, &res[1], eigenVectors);
-    return res;
+    i = 0;
+    while(i <len){
+        ret[0][i] = values[i];
+        i++;
+    }
+    matrix_copy(len, len, &ret[1], vectors);
+    return ret;
 }
