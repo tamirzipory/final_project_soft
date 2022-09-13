@@ -1,4 +1,4 @@
-double **diagonal_matrix(double **mat, int len){
+double **diagMat(double **mat, int len){
     int i, j;
     double sum;
     double **diag = mat_alloc_by_row_col(len, len);
