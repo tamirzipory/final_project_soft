@@ -1,4 +1,9 @@
 #include "spkmeans.h"
+#include "spk.c"
+#include "wam.c"
+#include "ddg.c"
+#include "lnorm.c"
+#include "jacobi.c"
 
 void invalid_input(){
     printf("Invalid Input!\n");
@@ -10,32 +15,8 @@ void err_print(){
     exit(1);
 }
 
-
-#include "spk.c"
-
-/* ================================== WAM (Weighted Adjacency Matrix) ================================== */
-
-#include "wam.c"
-/* ================================== Done WAM ==================================*/
-
-/* ================================== DDG (Diagonal Degree Matrix) ================================== */
-
-#include "ddg.c"
-/* ================================== Done DDG ==================================*/
-
-/* ================================== LNORM (Normalized Graph Laplacian) ================================== */
-
-#include "lnorm.c"
-/* ================================== Done LNORM ==================================*/
-
-/* ================================== JACOBI ================================== */
-
-#include "jacobi.c"
-/* ================================== Done JACOBI ==================================*/
-
-/* ================================== General/ Main's Functions ==================================*/
-double **matrix_allocation(int rows, int cols){
-    /*alloc of mat in size of rows * cols*/
+/*alloc mat according the dim*/
+double **mat_alloc_by_row_col(int rows, int cols){
     int i;
     double **mat = calloc(rows, (sizeof(double *)));
     if (NULL == mat)
@@ -49,8 +30,7 @@ double **matrix_allocation(int rows, int cols){
     }
     return mat;
 }
-
-/*the program recive file and purpose (purpose is calculate dim or num of vectors) and calculate the purpose*/
+/*return the dimentins according the purpose (dim or num of vectors*/
 int get_n_d_parameters(FILE *ifp, int situattion){
     char ch;
     int count = 0;
@@ -75,8 +55,7 @@ int get_n_d_parameters(FILE *ifp, int situattion){
     return count;
 }
 
-/* Receives matrices copy_mat,original_mat and number of rows and columns
- * Updates copy_mat to be a copy of original_mat */
+/* receive the mats copy_mat,original_mat and dimentions of them and copy the value of copy_mat of the values of original_mat */
 void matrix_copy(int rows, int cols, double **copy_mat, double **original_mat){
     int i, j;
     for (i = 0; i < rows; i++){
@@ -88,8 +67,7 @@ void matrix_copy(int rows, int cols, double **copy_mat, double **original_mat){
     }
 }
 
-/* Receives file's pointer, pointer to an empty matrix of datapoints and num of rows, num of cols
- * Updated data according to the file's data */
+/* set the inputs of the file to the mat of data according the dimentions*/
 void set_input(FILE *ifp, double **data, int rows, int cols){
     int i, j;
     double value;
@@ -107,8 +85,7 @@ void set_input(FILE *ifp, double **data, int rows, int cols){
     rewind(ifp);
 }
 
-/* Receives a matrix: mat_to_free and rows- matrix's number of rows
- * Frees mat_to_free*/
+/* recive mat and free it*/
 void free_memory(double **mat, int rows){
     int i = 0;
     while(i < rows){
@@ -118,9 +95,7 @@ void free_memory(double **mat, int rows){
     free(mat);
 }
 
-/* Receives an int: error_type (2 options: invalid (INVALID_TYPE) or error (ERROR_TYPE)) and is_error- boolean number
- * If is_error is 1 (true- an error occurred), print the correspond message (according to error_type) and exit
- * Else- continue (do nothing) */
+/*Replace the asserts */
 void msg_and_exit(int type_of_err, int err){
     if (err == 1){
         if (type_of_err != 0)
@@ -129,8 +104,7 @@ void msg_and_exit(int type_of_err, int err){
     }
 }
 
-/* Receives a matrix, number of rows and columns, and enum Goal
- * Prints the matrix (if the goal is jacobi then updates rows +1) */
+/* print matrix according the pourpose that we got from the user*/
 void print_result(double **mat, int rows, int cols, enum Goal target)
 {
     int i, j;
@@ -151,10 +125,7 @@ void print_result(double **mat, int rows, int cols, enum Goal target)
     }
 }
 
-/* Receives an enum Goal, matrix with given data (from file), N- number of rows (or number of points),
- * D- number of columns (or point's dimension) and a pointer to K
- * Returns corresponed matrix according to the given goal
- * If an error occured returns NULL*/
+/*the running function */
 double **run_goal(enum Goal target, double **data, int n1, int n2, int *n3){
     double **ret;
     double **mat_dd,**mat_wam, **mat_lnorm;
@@ -167,7 +138,7 @@ double **run_goal(enum Goal target, double **data, int n1, int n2, int *n3){
     if(target == 1)
         return ret;
     mat_wam = ret;
-    ret = diagonal_matrix(mat_wam, n1);
+    ret = diagMat(mat_wam, n1);
     if (target == 2 ||ret == NULL){
         free_memory(mat_wam, n1);
         return ret;
@@ -185,8 +156,7 @@ double **run_goal(enum Goal target, double **data, int n1, int n2, int *n3){
     return ret;
 }
 
-/* Receives k, goal and file_name from user
- * Calculates needed information from file and call run_goal, prints result at end*/
+/*The main function */
 int main(int argc, char *argv[]){
     double **data, **ret;
     int n1, n2, n3;
@@ -209,7 +179,7 @@ int main(int argc, char *argv[]){
     msg_and_exit(1, ifp == NULL);
     n1 = get_n_d_parameters(ifp, 1);
     n2 = get_n_d_parameters(ifp, 2);
-    data = matrix_allocation(n1, n2);
+    data = mat_alloc_by_row_col(n1, n2);
     msg_and_exit(1, data == NULL);
     set_input(ifp, data, n1, n2);
     ret = run_goal(target, data, n1, n2, &n3);
