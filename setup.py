@@ -1,12 +1,12 @@
 from setuptools import setup, Extension
 
 module = Extension(
-            "my_spkmeans",
+            "spkmeans_module",
             sources=["spkmeans.c", "kmeans.c", "spkmeansmodule.c"])
 
-setup(name='my_spkmeans',
+setup(name='spkmeans_module',
     author="Tamir Zipory",
     version='1.0',
-    description='spkmeans C implementation',
+    description='project',
     ext_modules=[module]
 )
