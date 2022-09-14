@@ -144,7 +144,7 @@ double **run_goal(enum Goal target, double **data, int n1, int n2, int *n3){
         return ret;
     }
     mat_dd = ret;
-    ret = laplacian_matrix(mat_dd, mat_wam, n1);
+    ret = calc_L_mat(mat_dd, mat_wam, n1);
     free_memory(mat_wam, n1);
     free_memory(mat_dd, n1);
 
