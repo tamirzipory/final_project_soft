@@ -108,7 +108,7 @@ void msg_and_exit(int type_of_err, int err){
 void print_result(double **mat, int rows, int cols, enum Goal target)
 {
     int i, j;
-    if (target == JACOBI)
+    if (target == 4)
         rows++;
     i = 0;
     while(i < rows){
