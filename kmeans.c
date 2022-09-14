@@ -26,7 +26,7 @@ int kMeans(int len, int in1, double **points, double **cent, int dim){
     while (max_iter > count){
         i = 0;
         while(i < len){
-            clust = find_cluster(cent, points[i], dim, in1);
+            clust = assign_cluster(cent, points[i], dim, in1);
             points[i][dim] = clust;
             cent[clust - 1][dim]++;
             i++;
@@ -75,7 +75,7 @@ int checkTheNorm(double **centNew, double **cent_that_used, int dim, int in1){
 }
 
 
-int find_cluster(double **cent, double *data, int dim, int K){
+int assign_cluster(double **cent, double *data, int dim, int K){
     int i, j, ret;
     double sum, min;
     ret=0; 
@@ -98,8 +98,7 @@ int find_cluster(double **cent, double *data, int dim, int K){
 void update_old_centroids(double **centNew, double **cent_that_used, int dim, int K){
     int i, j;
     i = 0;
-    while (i < K)
-    {
+    while (i < K){
         j = 0;
         while (j < dim){
             cent_that_used[i][j] = centNew[i][j];
