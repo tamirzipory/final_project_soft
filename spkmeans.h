@@ -9,22 +9,9 @@
 #include <ctype.h>
 #include <float.h>
 
-#define ERROR "An Error Has Occurred"
-#define INVALID "Invalid Input!"
-#define SUCCESS 0
-#define FAIL -1
-#define FIND_N 1
-#define FIND_D 2
-#define INVALID_TYPE 0
-#define ERROR_TYPE 1
-#define EPSILON_JACOBI 0.00001
-#define MAX_ITER_KMEANS 300
-#define WAM 1
-#define DDG 2
-#define LNORM 3
-#define JACOBI 4
-#define SPK 5
-#define SPK_EX2 6
+
+
+
 
 enum Goal{
   wam_g = 1,
@@ -35,45 +22,42 @@ enum Goal{
   spk_g2 = 6
 };
 
-/* Function's declarations*/
-/* Wam,Ddg and Lnorm's functions*/
-double **adjacency_matrix(double **data_points, int dimension, int N);
-double calc_euclidean_norm(double *x, double *y, int dimension);
+
+double **adjacency_matrix(double **data_points, int dimension, int len);
+double calc_euclidean_norm(double *vector_1, double *vector_2, int dimension);
 double **diag_mat(double **mat, int len);
-double **calc_L_mat(double **diag_mat, double **adj_mat, int N);
+double **calc_L_mat(double **diag_mat, double **adj_mat, int len);
 void cal_D12(double **diag_mat, int N);
 double **matrix_allocation(int num_rows, int num_cols);
-double **calc_mul(int N, double **A, double **B);
-void sab_matrix(int N, double **A, double **B);
-double **calc_id_mat(int N);
-double **spk_algo(double **lnorm, int N, int *K);
-double **sort_matrix_values(double **mat, int N);
-void eigengap_heuristic(double *eigenvalues, int N, int *K);
-double **set_T(double **U, int N, int K);
+double **calc_mul(int len, double **mat1, double **mat2);
+void sab_matrix(int len, double **mat1, double **mat2);
+double **calc_id_mat(int len);
+double **spk_algo(double **lnorm, int len, int *K);
+double **sort_matrix_values(double **mat, int len);
+void eigengap_heuristic(double *eigenvalues, int len, int *K);
+double **set_T(double **U_mat, int len, int K);
 
 /* (spkmeans.c) (C) main's functions*/
-double **run_goal(enum Goal goal, double **data_input, int N, int D, int *K);
+double **run_goal(enum Goal goal, double **data_input, int len, int D, int *K);
 void print_result(double **mat, int num_rows, int num_cols, enum Goal goal);
 void msg_and_exit(int error_type, int is_error);
-int get_n_d_parameters(FILE *ifp, int find_who);
-void set_input(FILE *ifp, double **data_input, int num_rows, int num_cols);
+int get_n_d_parameters(FILE *ifp, int situation);
+void set_input(FILE *ifp, double **data_input, int num_of_rows, int num_of_cols);
 void free_memory(double **ArrayToFree, int num_rows);
-
-/* (spkmeans.c) (spkmeans.c) Jacobi's functions*/
-double **calc_jacob(int N, double **A);
+double **calc_jacob(int len, double **A);
 void matrix_copy(int num_rows, int num_cols, double **dest_mat, double **src_mat);
-void A_to_A_tag(int N, double **A, int *i_pointer, int *j_pointer);
-void get_params(double **A, int i, int j, double *cPointer, double *sPointer);
-void calc_curr_P(int N, double **curr_P, int i, int j, double c, double s);
-void get_values_from_first_mat(double *eigenvalues, int N, double **A1);
+void A_to_A_tag(int len, double **A, int *i_pointer, int *j_pointer);
+void get_params(double **A, int i, int j, double *point_1, double *point_2);
+void calc_curr_P(int len, double **P_mat, int i, int j, double d1, double d2);
+void get_values_from_first_mat(double *values, int len, double **mat);
 void get_mat_transe(double **mat, int N);
-double **miun_of_eig(int N, double *eigenValues, double **eigenVectors);
-void calc_first_mat(int N, double **A, double c, double s, int i, int j, int *return_value);
-double calc_off_diag(int N, double **A);
+double **miun_of_eig(int len, double *values, double **vectors);
+void calc_first_mat(int len, double **mat, double d1, double d2, int i, int j, int *return_value);
+double calc_off_diag(int len, double **A);
 
-/* (kmeans.c) Kmeans algorithm's functions from ex2*/
-int kMeans(int N, int K, double **Datapoints, double **Centroids, int dimension);
-int checkTheNorm(double **newCentroids, double **oldCentroids, int dimension, int K);
-int find_cluster(double **Centroids, double *Datapoint, int dimension, int K);
-void update_old_centroids(double **newCentroids, double **oldCentroids, int dimension, int K);
+
+int kMeans(int len, int K, double **points, double **cent, int dimension);
+int checkTheNorm(double **fresh, double **old, int dimension, int K);
+int assign_cluster(double **cent, double *Datapoint, int dimension, int K);
+void update_old_centroids(double **fresh, double **old, int dimension, int K);
 #endif
