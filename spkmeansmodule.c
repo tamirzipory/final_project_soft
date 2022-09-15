@@ -4,78 +4,75 @@
 
 static PyObject *fit(PyObject *self, PyObject *args)
 {
-    PyObject *Datapoints_PyObject, *Centroids_PyObject, *current_datapoint, *current_double, *returned_result, *current_vector, *current_centroid;
-
-    int len, K, D, i, j, num_of_clusters, num_of_vectors, num_of_vectors_allocation, return_value;
+    PyObject *points_of_py, *cent_py;
+    PyObject *curr_points, *d_curr, *res, *vector_curr, *curr_cent;
+    int cluster_count, vectors_count, vectors_count_alloc, ret;
+    int len, K, D, i, j;
     double **Datapoints, **Centroids, **goal_result;
     enum Goal goal;
-    current_centroid=NULL, Centroids=NULL;
+    curr_cent=NULL, Centroids=NULL;
     
-
-    if (!PyArg_ParseTuple(args, "iiiOiO", &len, &K, &D, &Datapoints_PyObject, &goal, &Centroids_PyObject)){
+    if (!PyArg_ParseTuple(args, "iiiOiO", &len, &K, &D, &points_of_py, &goal, &cent_py)){
         PyErr_SetString(PyExc_RuntimeError, "An Error Has Occurred");
         return NULL;
     }
-
-    num_of_vectors_allocation=D;
-    if(goal==6)
-        num_of_vectors_allocation=D+1;
-
-    Datapoints = alloc_mat(len, num_of_vectors_allocation);
+    vectors_count_alloc=D;
+    if(goal==6){
+        vectors_count_alloc = D;
+        vectors_count_alloc = vectors_count_alloc +1;
+    }
+    Datapoints = alloc_mat(len, vectors_count_alloc);
     if (Datapoints == NULL){
         /*I dont know if we only need to return NULL, but my friends that we help them say that it's reccomend*/
         PyErr_SetString(PyExc_RuntimeError, "An Error Has Occurred");
         return NULL;
     }
-
-    
-   
     if(goal == 6){
-        Centroids = alloc_mat(K, num_of_vectors_allocation);
+        Centroids = alloc_mat(K, vectors_count_alloc);
         if (Centroids == NULL){
             free_memory(Datapoints, len);
             PyErr_SetString(PyExc_RuntimeError, "An Error Has Occurred");
             return NULL;
         }
     }
-    
-    /* Fill matrix values as given list from python*/
-    for (i = 0; i < len; i++)
+    i = 0;
+    while (i < len)
     {
-        current_datapoint = PyList_GetItem(Datapoints_PyObject, i);
-        if (i < K && goal == 6)
-            current_centroid = PyList_GetItem(Centroids_PyObject, i);
-
-        /*Set up each of vector*/
-        for (j = 0; j < D; j++){
-            current_double = PyList_GetItem(current_datapoint, j);
-            Datapoints[i][j] = PyFloat_AsDouble(current_double);
-            if (i < K && goal == 6){
-                current_double = PyList_GetItem(current_centroid, j);
-                Centroids[i][j] = PyFloat_AsDouble(current_double);
-            }
+        curr_points = PyList_GetItem(points_of_py, i);
+        if (goal == 6){
+            if(i < K)
+                curr_cent = PyList_GetItem(cent_py, i);
         }
-
-      
+        j = 0;
+        while (j < D)
+        {
+            d_curr = PyList_GetItem(curr_points, j);
+            Datapoints[i][j] = PyFloat_AsDouble(d_curr);
+            if (oal == 6){
+                if(i < k){
+                   d_curr = PyList_GetItem(curr_cent, j);
+                   Centroids[i][j] = PyFloat_AsDouble(d_curr);
+                }
+            }
+            j++;
+        }
         if(goal == 6){
             Datapoints[i][j] = 0;
             if (i < K)
                 Centroids[i][j] = 0;
-            
         }
+        i++;
     }
-
-  
     if (goal == 6){
-        return_value = kMeans(len, K, Datapoints, Centroids, D);
-        if (return_value == -1){
+        ret = kMeans(len, K, Datapoints, Centroids, D);
+        if (ret == -1){
             free_memory(Datapoints,len);
             free_memory(Centroids,K);
             PyErr_SetString(PyExc_RuntimeError, "An Error Has Occurred");
             return NULL;
         }
         goal_result = Centroids;
-        num_of_clusters = K; 
+        cluster_count = K; 
         num_of_vectors=D; 
     }
     else
@@ -88,9 +85,9 @@ static PyObject *fit(PyObject *self, PyObject *args)
         }
 
         if(goal == 4)
-            num_of_clusters = len+1;
+            cluster_count = len+1;
         else
-            num_of_clusters = len;
+            cluster_count = len;
 
         num_of_vectors=len; 
 
@@ -99,18 +96,18 @@ static PyObject *fit(PyObject *self, PyObject *args)
     }
 
     /* Converts result_matrix to an array list (python)*/
-    returned_result = PyList_New(num_of_clusters);
-    for (i = 0; i < num_of_clusters; ++i){
-        current_vector = PyList_New(num_of_vectors);
+    res = PyList_New(cluster_count);
+    for (i = 0; i < cluster_count; ++i){
+        vector_curr = PyList_New(num_of_vectors);
         for (j = 0; j < num_of_vectors; j++)
-            PyList_SetItem(current_vector, j, Py_BuildValue("d", goal_result[i][j]));
-        PyList_SetItem(returned_result, i, Py_BuildValue("O", current_vector));
+            PyList_SetItem(vector_curr, j, Py_BuildValue("d", goal_result[i][j]));
+        PyList_SetItem(res, i, Py_BuildValue("O", vector_curr));
     }
 
     free_memory(Datapoints, len);
-    free_memory(goal_result, num_of_clusters);
+    free_memory(goal_result, cluster_count);
 
-    return returned_result;
+    return res;
 }
 
 
