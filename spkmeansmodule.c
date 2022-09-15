@@ -21,7 +21,7 @@ static PyObject *fit(PyObject *self, PyObject *args)
     if(goal==6)
         num_of_vectors_allocation=D+1;
 
-    Datapoints = matrix_allocation(len, num_of_vectors_allocation);
+    Datapoints = alloc_for_mat(len, num_of_vectors_allocation);
     if (Datapoints == NULL){
         /*I dont know if we only need to return NULL, but my friends that we help them say that it's reccomend*/
         PyErr_SetString(PyExc_RuntimeError, "An Error Has Occurred");
@@ -31,7 +31,7 @@ static PyObject *fit(PyObject *self, PyObject *args)
     
    
     if(goal == 6){
-        Centroids = matrix_allocation(K, num_of_vectors_allocation);
+        Centroids = alloc_for_mat(K, num_of_vectors_allocation);
         if (Centroids == NULL){
             free_memory(Datapoints, len);
             PyErr_SetString(PyExc_RuntimeError, "An Error Has Occurred");
@@ -80,7 +80,7 @@ static PyObject *fit(PyObject *self, PyObject *args)
     }
     else
     {
-        goal_result = run_goal(goal, Datapoints, len, D, &K);
+        goal_result = triger_project(goal, Datapoints, len, D, &K);
         if (goal_result == NULL){
             free_memory(Datapoints, len);
             PyErr_SetString(PyExc_RuntimeError, "An Error Has Occurred");
@@ -98,7 +98,7 @@ static PyObject *fit(PyObject *self, PyObject *args)
             num_of_vectors=K; 
     }
 
-    /* Converts result_matrix to an array list (python)*/
+    
     returned_result = PyList_New(num_of_clusters);
     for (i = 0; i < num_of_clusters; ++i){
         current_vector = PyList_New(num_of_vectors);
