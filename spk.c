@@ -1,97 +1,101 @@
+double **spk_algo(double **lnorm, int N, int *K){ /* Called after steps 1-2 have been made*/
+    double **jacobi_output, **eigenvectors, **T, **sort_transpose;
 
-double **set_T(double **the_u_mat, int len, int K){
-    int i, j, in;
-    double sum = 0;
-    double **the_T_mat = alloc_for_mat(len, K);
-    if (NULL == the_T_mat)
-         return NULL;
-    i = 0;
-    while (i < len){
-        j = 0;
-        while (j < K){
-             if (j == 0){
-                sum = 0;
-                for (in = 0; in < K; in++)
-                    sum = sum + (the_u_mat[i][in] * the_u_mat[i][in]);
-            }
-            if(sum != 0)
-                the_T_mat[i][j] = the_u_mat[i][j] / sqrt(sum);
-            else the_T_mat[i][j] = 0;
-        j++;
-        }
-        i++;
-    }
-    return the_T_mat;
-}
-
-void eigengap_heuristic(double *values, int len, int *K){ 
-    int i;
-    double temp;
-    double curr_max_gap = DBL_MIN;
-    i =0;
-    while((int)(len / 2) >= i){
-         if (fabs(values[i-1]-values[i]) > curr_max_gap){
-            temp = fabs(values[i-1]-values[i]);
-            curr_max_gap = temp;
-            *K = i;
-        }
-        i++;
-    }
-}
-
-double **spk_algo(double **lNormat, int len, int *K){ 
-    double **patt_jacobi;
-    double **the_e_vectors;
-    double **the_T_mat;
-    double **miun_T_mat;
-    patt_jacobi = (double **)calc_jacob(len, lNormat);
-    if (NULL == patt_jacobi)
+    jacobi_output = (double **)calc_jacob(N, lnorm);
+    if (jacobi_output == NULL)
         return NULL;
-    the_e_vectors = 1 + patt_jacobi;
-    get_mat_transe(the_e_vectors, len);  
-    miun_T_mat = sort_matrix_values(patt_jacobi, len);
-    if(miun_T_mat == NULL || *K == 0){
-        if (miun_T_mat == NULL)
-             return NULL;
-        if (*K == 0) eigengap_heuristic(miun_T_mat[0], len, K);
-    }
-    the_e_vectors = 1 + miun_T_mat; 
-    get_mat_transe(the_e_vectors, len);
-    the_T_mat = set_T(the_e_vectors, len, *K);
-    free_memory(miun_T_mat, 1 + len);
-    return the_T_mat;
+
+    /* Transpose on eigenvectors- to make the sort easier*/
+    eigenvectors = jacobi_output + 1; /* Jacobi without eigenvalues*/
+    get_mat_transe(eigenvectors, N);
+
+    /* in sort_transpose jacobi_output is being freed, there is no use in it again!*/
+    sort_transpose = sort_matrix_values(jacobi_output, N);
+    if (sort_transpose == NULL)
+        return NULL;
+
+    /* The Eigengap Heuristic- was told not to handle a case where k=1*/
+    if (*K == 0)
+        eigengap_heuristic(sort_transpose[0], N, K);
+
+    /* Transpose on eigenvectors- get them to the right shape (vector in columns)*/
+    eigenvectors = sort_transpose + 1; /* sort_transpose without eigenvalues*/
+    get_mat_transe(eigenvectors, N);
+
+    /* eigenvectors points to the start of eigenvectors, we will use only the first K vectors (first K columns) as U
+     * and update eigenvectors (by renormalizing each of U’s rows) to be T */
+    T = set_T(eigenvectors, N, *K);
+    free_memory(sort_transpose, N + 1);
+
+    return T;
 }
 
-void free_sort(double** mat){
+/* Receives a jacobi's matrix
+ * Sort first row and rows 1 to N according to the eigenvalues in first row */
+double **sort_matrix_values(double **mat, int N){
+    int i, j, max_index;
+    double max_value;
+    double **sort_mat = alloc_for_mat(N + 1, N);
+    if (sort_mat == NULL){
+        free_memory(mat, N + 1);
+        return NULL;
+    }
+    for (i = 0; i < N; i++){
+        max_index = -1;
+        max_value = -1;
+        for (j = 0; j < N; j++){
+            /* Found new max*/
+            if (max_value < mat[0][j]){
+                max_index = j;
+                max_value = mat[0][j];
+            }
+        }
+        /* Place the i'th eigenvalue in the i'th cell and it's correspoond eigenvectors in line number i+1 */
+        sort_mat[0][i] = max_value;
+        sort_mat[i + 1] = mat[max_index + 1];
+        mat[0][max_index] = -1;
+    }
+    /* free (mat=jacobi_output) */
     free(mat[0]);
     free(mat);
+    return sort_mat;
 }
 
-double **sort_matrix_values(double **mat, int dim){
-    int i, j, max_of_index;
-    double the_max_value, temp;
-    double **sort_mat = alloc_for_mat(dim + 1, dim);
-    if (NULL == sort_mat){
-        free_memory(mat, dim + 1);
+/* Receives U (created by largest eigenvectors of jacobi), N- number of rows, K- number of columns
+ * Returns T- by renormalizing each of U’s rows to have unit length */
+double **set_T(double **U, int N, int K){
+    int i, j, q;
+    double sum = 0;
+
+    double **T = alloc_for_mat(N, K);
+    if (T == NULL)
         return NULL;
-    }
-    i  = 0;
-    while(i < dim){
-        max_of_index = -1, the_max_value = -1;
-        j = 0;
-        while(j < dim){
-            if (the_max_value < mat[0][j]){
-                max_of_index = j;
-                the_max_value = mat[0][j];
+
+    for (i = 0; i < N; i++){
+        for (j = 0; j < K; j++){
+            /* Calculate sum once for each new row!*/
+            if (j == 0){
+                sum = 0;
+                for (q = 0; q < K; q++)
+                    sum += pow(U[i][q], 2);
             }
-            j++;
+            T[i][j] = (sum != 0) ? (U[i][j] / sqrt(sum)) : 0;
         }
-        temp = the_max_value;
-        sort_mat[0][i] = temp;
-        sort_mat[i + 1] = mat[max_of_index + 1];
-        mat[0][max_of_index] = -1;
-        i++;
     }
-    free_sort(mat);
-    return sort_mat;
+    return T;
+}
+
+/* Receives eigenvalues (in decreasing order), N- number of values, K- number of clusters
+ * Calculate K as described (Eigengap Heuristic algorithm) */
+void eigengap_heuristic(double *eigenvalues, int N, int *K){ /* (Assumption) lnorm formed as a decreasing ordered eigenvalues*/
+    int i;
+    double curr_max_gap = DBL_MIN;
+
+    /* lmda(1)= E[0]>=lmda(2)=E[1]>=...>=lmda(n/2)=E[(N/2)-1]>=0*/
+    for (i = 1; i <= (int)(N / 2); i++){
+        if (curr_max_gap < fabs(eigenvalues[i - 1] - eigenvalues[i])){
+            curr_max_gap = fabs(eigenvalues[i - 1] - eigenvalues[i]);
+            *K = i;
+        }
+    }
 }
