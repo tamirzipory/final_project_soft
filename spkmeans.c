@@ -31,7 +31,7 @@ double **alloc_mat(int rows, int cols){
     return mat;
 }
 /*return the dimentins according the purpose (dim or num of vectors*/
-int get_n_d_parameters(FILE *ifp, int situattion){
+int n_paramss(FILE *ifp, int situattion){
     char ch;
     int count = 0;
     ch = 0;
@@ -68,7 +68,7 @@ void matrix_copy(int rows, int cols, double **copy_mat, double **original_mat){
 }
 
 /* set the inputs of the file to the mat of data according the dimentions*/
-void set_input(FILE *ifp, double **data, int rows, int cols){
+void insert_the_clin(FILE *ifp, double **data, int rows, int cols){
     int i, j;
     double value;
     i = 0, j = 0;
@@ -96,7 +96,7 @@ void free_memory(double **mat, int rows){
 }
 
 /*Replace the */
-void msg_and_exit(int type_of_err, int err){
+void replace_the_assert(int type_of_err, int err){
     if (err == 1){
         if (type_of_err != 0)
             err_print();
@@ -105,7 +105,7 @@ void msg_and_exit(int type_of_err, int err){
 }
 
 /* print matrix according the pourpose that we got from the user*/
-void print_result(double **mat, int rows, int cols, enum Goal target)
+void display_the_mat(double **mat, int rows, int cols, enum Goal target)
 {
     int i, j;
     if (target == 4)
@@ -126,7 +126,7 @@ void print_result(double **mat, int rows, int cols, enum Goal target)
 }
 
 /*the running function */
-double **run_goal(enum Goal target, double **data, int n1, int n2, int *n3){
+double **target_runner(enum Goal target, double **data, int n1, int n2, int *n3){
     double **ret;
     double **mat_dd,**mat_wam, **mat_lnorm;
     if (target == 4)
@@ -163,7 +163,7 @@ int main(int argc, char *argv[]){
     FILE *ifp;
     enum Goal target = 0;
     n3 = 0;
-    msg_and_exit(0, argc != 3);
+    replace_the_assert(0, argc != 3);
 
     if (strcmp("wam", argv[1]) == 0)
         target = wam_g;
@@ -173,22 +173,22 @@ int main(int argc, char *argv[]){
         target = lnorm_g;
     else if (strcmp("jacobi", argv[1]) == 0)
         target = jacobi_g;
-    msg_and_exit(0, 0 == target);
+    replace_the_assert(0, 0 == target);
 
     ifp = fopen(argv[2], "r");
-    msg_and_exit(1, ifp == NULL);
-    n1 = get_n_d_parameters(ifp, 1);
-    n2 = get_n_d_parameters(ifp, 2);
+    replace_the_assert(1, ifp == NULL);
+    n1 = n_paramss(ifp, 1);
+    n2 = n_paramss(ifp, 2);
     data = alloc_mat(n1, n2);
-    msg_and_exit(1, data == NULL);
-    set_input(ifp, data, n1, n2);
-    ret = run_goal(target, data, n1, n2, &n3);
+    replace_the_assert(1, data == NULL);
+    insert_the_clin(ifp, data, n1, n2);
+    ret = target_runner(target, data, n1, n2, &n3);
     if (NULL == ret){ 
         free_memory(data, n1);
-        msg_and_exit(1, 1);
+        replace_the_assert(1, 1);
     }
 
-    print_result(ret, n1, n1, target);
+    display_the_mat(ret, n1, n1, target);
     printf("\n");
     free_memory(data, n1);
     if (jacobi_g != target)
