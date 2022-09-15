@@ -51,43 +51,43 @@ double **calc_jacob(int len_mat, double **A){
 }
 
 
-void calc_first_mat(int len_mat, double **A, double d1, double d2, int i, int j, int *ret){
+void calc_first_mat(int len_mat, double **the_mat, double d1, double d2, int i, int j, int *ret){
     int r;
-    double **rows_cols = alloc_mat(2, len_mat);
-    if (NULL == rows_cols){
+    double **mat_2 = alloc_mat(2, len_mat);
+    if (NULL == mat_2){
         *ret = 0;
         return;
     }
     r = 0;
     while(r < len_mat){
         if(r != i && r != j){
-            rows_cols[0][r] = d1 * A[r][i] - d2 * A[r][j];
-            rows_cols[1][r] = d1 * A[r][j] + d2 * A[r][i];
+            mat_2[0][r] = d1 * the_mat[r][i] - d2 * the_mat[r][j];
+            mat_2[1][r] = d1 * the_mat[r][j] + d2 * the_mat[r][i];
         }
         else if(r == i || r == j){
             if(r == i)
-               rows_cols[0][r] = d2 * d2 * A[j][j] + d1 *d1 * A[i][i] - 2 * d2 * d1 * A[i][j];
+               mat_2[0][r] = d2 * d2 * the_mat[j][j] + d1 *d1 * the_mat[i][i] - 2 * d2 * d1 * the_mat[i][j];
             if(r == j)
-               rows_cols[1][r] = 2 * d2 * d1 * A[i][j] + d2 * d2 * A[i][i] + d1 * d1 * A[j][j];
+               mat_2[1][r] = 2 * d2 * d1 * the_mat[i][j] + d2 * d2 * the_mat[i][i] + d1 * d1 * the_mat[j][j];
         }
         else {
-            rows_cols[0][r] = 0;
-            rows_cols[1][r] = 0;
+            mat_2[0][r] = 0;
+            mat_2[1][r] = 0;
         }
         r++;
     }
     r = 0;
     while(r < len_mat){
        if (r != i && r != j){
-            A[r][i] = rows_cols[0][r]; 
-            A[i][r] = A[r][i];           
-            A[j][r] = rows_cols[1][r]; 
-            A[r][j] = A[j][r];           
+            the_mat[r][i] = mat_2[0][r]; 
+            the_mat[i][r] = the_mat[r][i];           
+            the_mat[j][r] = mat_2[1][r]; 
+            the_mat[r][j] = the_mat[j][r];           
         }
         r++; 
     }
-    A[i][j] = 0, A[j][i] = 0, A[i][i] = rows_cols[0][i], A[j][j] = rows_cols[1][j];
-    free_memory(rows_cols,2);
+    the_mat[i][j] = 0, the_mat[j][i] = 0, the_mat[i][i] = mat_2[0][i], the_mat[j][j] = mat_2[1][j];
+    free_memory(mat_2,2);
     *ret = 1;
 }
 
