@@ -27,7 +27,7 @@ double **adjacency_matrix(double **data_points, int dimension, int len);
 double calc_euclidean_norm(double *vector_1, double *vector_2, int dimension);
 double **diag_mat(double **mat, int len);
 double **calc_L_mat(double **diag_mat, double **adj_mat, int len);
-void cal_D12(double **diag_mat, int N);
+void calcDMat(double **diag_mat, int N);
 double **alloc_for_mat(int num_rows, int num_cols);
 double **calc_mul(int len, double **mat1, double **mat2);
 void sab_matrix(int len, double **mat1, double **mat2);
