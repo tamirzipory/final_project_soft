@@ -1,88 +1,79 @@
 #include <Python.h>
 #include "spkmeans.h"
 
+static PyObject *fit(PyObject *self, PyObject *args){
+    PyObject *points_op_py, *cent_of_python, *d_points_curr, *curr_of_number, *arr_of_output, *vector_of_now, *arr_cent_of_now;
 
-static PyObject *fit(PyObject *self, PyObject *args)
-{
-    PyObject *Datapoints_PyObject, *Centroids_PyObject, *current_datapoint, *current_double, *returned_result, *current_vector, *current_centroid;
-
-    int len, K, D, i, j, num_of_clusters, num_of_vectors, num_of_vectors_allocation, return_value;
-    double **Datapoints, **Centroids, **goal_result;
+    int len, K, dis, i, j
+    int num_of_clusters, num_of_vectors, num_vec_alloc, what_client_get;
+    double **mat_of_points, **mat_of_cent, **mat_of_goals;
     enum Goal goal;
-    current_centroid=NULL, Centroids=NULL;
-    
-
-    if (!PyArg_ParseTuple(args, "iiiOiO", &len, &K, &D, &Datapoints_PyObject, &goal, &Centroids_PyObject)){
+    arr_cent_of_now=NULL, mat_of_cent=NULL;
+    if (!PyArg_ParseTuple(args, "iiiOiO", &len, &K, &dis, &points_op_py, &goal, &cent_of_python)){
         PyErr_SetString(PyExc_RuntimeError, "An Error Has Occurred");
         return NULL;
     }
-
-    num_of_vectors_allocation=D;
+    num_vec_alloc=dis;
     if(goal==6)
-        num_of_vectors_allocation=D+1;
-
-    Datapoints = alloc_mat(len, num_of_vectors_allocation);
-    if (Datapoints == NULL){
-        /*I dont know if we only need to return NULL, but my friends that we help them say that it's reccomend*/
+        num_vec_alloc=dis+1;
+    mat_of_points = alloc_mat(len, num_vec_alloc);
+    if (mat_of_points == NULL){
         PyErr_SetString(PyExc_RuntimeError, "An Error Has Occurred");
         return NULL;
     }
 
-    
-   
     if(goal == 6){
-        Centroids = alloc_mat(K, num_of_vectors_allocation);
-        if (Centroids == NULL){
-            free_memory(Datapoints, len);
+        mat_of_cent = alloc_mat(K, num_vec_alloc);
+        if (mat_of_cent == NULL){
+            free_memory(mat_of_points, len);
             PyErr_SetString(PyExc_RuntimeError, "An Error Has Occurred");
             return NULL;
         }
     }
-    
-    /* Fill matrix values as given list from python*/
-    for (i = 0; i < len; i++)
-    {
-        current_datapoint = PyList_GetItem(Datapoints_PyObject, i);
-        if (i < K && goal == 6)
-            current_centroid = PyList_GetItem(Centroids_PyObject, i);
-
-        /*Set up each of vector*/
-        for (j = 0; j < D; j++){
-            current_double = PyList_GetItem(current_datapoint, j);
-            Datapoints[i][j] = PyFloat_AsDouble(current_double);
-            if (i < K && goal == 6){
-                current_double = PyList_GetItem(current_centroid, j);
-                Centroids[i][j] = PyFloat_AsDouble(current_double);
+     i=0;
+     while(i < len){
+        d_points_curr = PyList_GetItem(points_op_py, i);
+        if (goal == 6){
+            if(i < K)
+            arr_cent_of_now = PyList_GetItem(cent_of_python, i);
+        }
+        j = 0;
+        while (j < dis)
+        {
+            curr_of_number = PyList_GetItem(d_points_curr, j);
+            mat_of_points[i][j] = PyFloat_AsDouble(curr_of_number);
+            if (goal == 6){
+                if(i < k){
+                curr_of_number = PyList_GetItem(arr_cent_of_now, j);
+                mat_of_cent[i][j] = PyFloat_AsDouble(curr_of_number);
+                }
             }
+            j++;
         }
 
-      
         if(goal == 6){
-            Datapoints[i][j] = 0;
-            if (i < K)
-                Centroids[i][j] = 0;
-            
+            mat_of_points[i][j] = 0;
+            if (i < K) mat_of_cent[i][j] = 0;
         }
-    }
-
-  
+        i++;
+     }
     if (goal == 6){
-        return_value = kMeans(len, K, Datapoints, Centroids, D);
-        if (return_value == -1){
-            free_memory(Datapoints,len);
-            free_memory(Centroids,K);
+        what_client_get = kMeans(len, K, mat_of_points, mat_of_cent, dis);
+        if (what_client_get == -1){
+            free_memory(mat_of_points,len);
+            free_memory(mat_of_cent,K);
             PyErr_SetString(PyExc_RuntimeError, "An Error Has Occurred");
             return NULL;
         }
-        goal_result = Centroids;
+        mat_of_goals = mat_of_cent;
         num_of_clusters = K; 
-        num_of_vectors=D; 
+        num_of_vectors=dis; 
     }
     else
     {
-        goal_result = run_goal(goal, Datapoints, len, D, &K);
-        if (goal_result == NULL){
-            free_memory(Datapoints, len);
+        mat_of_goals = run_goal(goal, mat_of_points, len, D, &K);
+        if (mat_of_goals == NULL){
+            free_memory(mat_of_points, len);
             PyErr_SetString(PyExc_RuntimeError, "An Error Has Occurred");
             return NULL;
         }
@@ -98,19 +89,18 @@ static PyObject *fit(PyObject *self, PyObject *args)
             num_of_vectors=K; 
     }
 
-    /* Converts result_matrix to an array list (python)*/
-    returned_result = PyList_New(num_of_clusters);
+    arr_of_output = PyList_New(num_of_clusters);
     for (i = 0; i < num_of_clusters; ++i){
-        current_vector = PyList_New(num_of_vectors);
+        vector_of_now = PyList_New(num_of_vectors);
         for (j = 0; j < num_of_vectors; j++)
-            PyList_SetItem(current_vector, j, Py_BuildValue("d", goal_result[i][j]));
-        PyList_SetItem(returned_result, i, Py_BuildValue("O", current_vector));
+            PyList_SetItem(vector_of_now, j, Py_BuildValue("d", mat_of_goals[i][j]));
+        PyList_SetItem(arr_of_output, i, Py_BuildValue("O", vector_of_now));
     }
 
-    free_memory(Datapoints, len);
-    free_memory(goal_result, num_of_clusters);
+    free_memory(mat_of_points, len);
+    free_memory(mat_of_goals, num_of_clusters);
 
-    return returned_result;
+    return arr_of_output;
 }
 
 
