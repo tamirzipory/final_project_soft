@@ -80,14 +80,10 @@ void func_heruicsic(double *eigenvalues, int len, int *K){
     double curr_max_gap = DBL_MIN;
 
     int max_iter = (int)(len / 2);
-    i = 0;
-    while (i <= max_iter)
-    {
-        if (curr_max_gap<fabs(eigenvalues[i - 1]-eigenvalues[i])){
-            if (curr_max_gap<fabs(eigenvalues[i - 1]-eigenvalues[i]))
-                 curr_max_gap = fabs(eigenvalues[i - 1] - eigenvalues[i]);
+    for (i = 1; i <= max_iter; i++){
+        if (curr_max_gap < fabs(eigenvalues[i - 1] - eigenvalues[i])){
+            curr_max_gap = fabs(eigenvalues[i - 1] - eigenvalues[i]);
             *K = i;
         }
-        i++;
     }
 }
