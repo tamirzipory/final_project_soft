@@ -10,12 +10,12 @@
 #include <float.h>
 
 enum Goal{
-  wam_g = 1,
-  ddg_g = 2,
-  lnorm_g = 3,
-  jacobi_g = 4,
-  spk_g = 5,
-  spk_g2 = 6
+  code_of_wam = 1,
+  code_of_ddg = 2,
+  code_of_lnorm = 3,
+  code_of_jacobi = 4,
+  code_of_spk = 5,
+  code_of_kmeans = 6
 };
 
 
