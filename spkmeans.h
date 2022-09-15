@@ -33,8 +33,8 @@ double **calc_mul(int len, double **mat1, double **mat2);
 void sab_matrix(int len, double **mat1, double **mat2);
 double **calc_id_mat(int len);
 double **cal_spk(double **lnorm, int len, int *K);
-double **sort_matrix_values(double **mat, int len);
-void eigengap_heuristic(double *eigenvalues, int len, int *K);
+double **sortMatValues(double **mat, int len);
+void heru_eigen(double *eigenvalues, int len, int *K);
 double **set_T(double **U_mat, int len, int K);
 
 
