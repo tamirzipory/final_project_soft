@@ -112,16 +112,16 @@ def kMeans_init(K, data_points_array):
         index = np.random.choice(arr_of_index, p=p_arr)
         the_op_arr.append(index)
         arr_of_cent_index.append(data_points_array[index])
-    return the_op_arr,arr_of_cent_index
+    return the_op_arr, arr_of_cent_index
 
 
-def find_D(D_array, datapoints_array, N, arr_of_cent_index):
-    D_array[N] = 0.0
-    for l in range(N):
+def find_D(D_array, datapoints_array, max_iter, arr_of_cent_index):
+    D_array[max_iter] = 0.0
+    for l in range(max_iter):
        
         D_array[l] = np.min([calc(datapoints_array[l], centroid) for centroid in arr_of_cent_index])
         
-        D_array[N] = D_array[N] + D_array[l]
+        D_array[max_iter] = D_array[max_iter] + D_array[l]
 
 
 def calc(x, y):  
@@ -129,10 +129,10 @@ def calc(x, y):
     return np.sum(np.multiply(z, z))
 
 
-def call_fit_ex2(N, K, dimension, data_points, centroids, goal):
+def call_fit_ex2(max_iter, K, dimension, data_points, centroids, goal):
   
     try:
-        final_centroids = spkmeans_module.fit(N, K, dimension, data_points, goal.value, centroids)
+        final_centroids = spkmeans_module.fit(max_iter, K, dimension, data_points, goal.value, centroids)
         return final_centroids
     except:
         handle_errors()
@@ -144,21 +144,21 @@ def main(argv):
     inputs = argv
     inputs_len = len(inputs)
     K, goal = check_input(argv, inputs_len)
-    data_points_array, N, D = get_goal_input(argv[3])
+    data_points_array, max_iter, D = get_goal_input(argv[3])
 
-    if K > N:
+    if K > max_iter:
         handle_errors_input()
     try:
-        goal_matrix = spkmeans_module.fit(N, K, D, data_points_array.tolist(), goal.value, [])
+        goal_matrix = spkmeans_module.fit(max_iter, K, D, data_points_array.tolist(), goal.value, [])
         if(goal != Goal.spk):
-            print_output(goal_matrix, N, goal)
+            print_output(goal_matrix, max_iter, goal)
         else:
             if(K == 0):
                 K = len(goal_matrix[0])
             goal=Goal.kmeans_enum
             centroids_index, centroids = kMeans_init(K, goal_matrix)
             D=K
-            display_out_of_spk(call_fit_ex2(N, K, D,goal_matrix, centroids, goal), K, D, centroids_index)
+            display_out_of_spk(call_fit_ex2(max_iter, K, D,goal_matrix, centroids, goal), K, D, centroids_index)
 
     except:
         handle_errors()
