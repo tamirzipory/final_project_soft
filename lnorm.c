@@ -27,8 +27,7 @@ double divide_lnorm(double** mat, int i, int j){
     return (1 / sqrt(mat[i][j]));
 }
 
-/* Receives D- diagonal degree matrix, N- number of rows/columns
- * Updates D to D^(-0.5)*/
+
 void cal_D12(double **diag_mat, int len){
     int i;
     for (i = 0; i < len; i++){
@@ -39,13 +38,11 @@ void cal_D12(double **diag_mat, int len){
     }
 }
 
-/* Receives matrices: A,B and N- number of rows/columns
- * Returns matrix C= A*B
- * If an error occurred returns NULL*/
+/*create new mat with valus of the mult of mat1*mat2 when the mult is like algebra linearit*/
 double **calc_mul(int dim_of_the_mats, double **mat1, double **mat2){
     int i, j, z;
     double temp;
-    double **ret = matrix_allocation(dim_of_the_mats, dim_of_the_mats);
+    double **ret = alloc_for_mat(dim_of_the_mats, dim_of_the_mats);
     if (ret == NULL)
         return NULL;
 
@@ -78,8 +75,7 @@ double **calc_mul(int dim_of_the_mats, double **mat1, double **mat2){
     return ret;
 }
 
-/* Receives matrices: A,B and N- number of rows/columns
- * Updates A= A-B */
+/*sub mat1-mat2 and put the result in mat1*/
 void sab_matrix(int dim, double **mat1, double **mat2){
     int i, j;
     double temp;
@@ -104,7 +100,7 @@ void sab_matrix(int dim, double **mat1, double **mat2){
 /*calculate id-mat*/
 double **calc_id_mat(int dim_of_mat){
     int i, j;
-    double **id_mat = matrix_allocation(dim_of_mat, dim_of_mat);
+    double **id_mat = alloc_for_mat(dim_of_mat, dim_of_mat);
     if (id_mat == NULL)
         return NULL;
 
