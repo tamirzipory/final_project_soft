@@ -62,6 +62,11 @@ double **spk_algo(double **lNormat, int len, int *K){
     return the_T_mat;
 }
 
+void free_sort(double** mat){
+    free(mat[0]);
+    free(mat);
+}
+
 double **sort_matrix_values(double **mat, int dim){
     int i, j, max_of_index;
     double the_max_value, temp;
