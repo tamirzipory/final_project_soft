@@ -1,4 +1,4 @@
-double **spk_algo(double **lnorm, int len, int *K){ /* Called after steps 1-2 have been made*/
+double **cal_spk(double **lnorm, int len, int *K){ 
     double **jacobi_pattern, **eigenvectors, **the_T_mat, **miun_T_mat;
 
     jacobi_pattern = (double **)calc_jacob(len, lnorm);
@@ -23,33 +23,38 @@ double **spk_algo(double **lnorm, int len, int *K){ /* Called after steps 1-2 ha
     return the_T_mat;
 }
 
-
-double **sort_matrix_values(double **mat, int N){
-    int i, j, max_index;
-    double max_value;
-    double **sort_mat = alloc_for_mat(N + 1, N);
-    if (sort_mat == NULL){
-        free_memory(mat, N + 1);
-        return NULL;
-    }
-    for (i = 0; i < N; i++){
-        max_index = -1;
-        max_value = -1;
-        for (j = 0; j < N; j++){
-            /* Found new max*/
-            if (max_value < mat[0][j]){
-                max_index = j;
-                max_value = mat[0][j];
-            }
-        }
-       
-        sort_mat[0][i] = max_value;
-        sort_mat[i + 1] = mat[max_index + 1];
-        mat[0][max_index] = -1;
-    }
-   
+void free_sort(double** mat){
     free(mat[0]);
     free(mat);
+}
+
+double **sort_matrix_values(double **mat, int dim){
+    int i, j, max_of_index;
+    double the_max_value;
+    double **sort_mat = alloc_for_mat(dim + 1, dim);
+    if (sort_mat == NULL){
+        free_memory(mat, dim + 1);
+        return NULL;
+    }
+
+    i  = 0;
+    while(i < dim){
+        max_of_index = -1, the_max_value = -1;
+        j = 0;
+        while(j < dim){
+            if (the_max_value < mat[0][j]){
+                max_of_index = j;
+                the_max_value = mat[0][j];
+            }
+            j++;
+        }
+        sort_mat[0][i] = the_max_value;
+        sort_mat[i + 1] = mat[max_of_index + 1];
+        mat[0][max_of_index] = -1;
+        i++;
+    }
+   
+    free_sort(mat);
     return sort_mat;
 }
 
