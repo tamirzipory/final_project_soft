@@ -24,7 +24,7 @@ enum Goal{
 
 
 double **adjacency_matrix(double **data_points, int dimension, int len);
-double calc_euclidean_norm(double *vector_1, double *vector_2, int dimension);
+double euc_norm_calc(double *vector_1, double *vector_2, int dimension);
 double **diag_mat(double **mat, int len);
 double **calc_L_mat(double **diag_mat, double **adj_mat, int len);
 void calcDMat(double **diag_mat, int N);
