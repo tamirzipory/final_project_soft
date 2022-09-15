@@ -179,7 +179,7 @@ int main(int argc, char *argv[]){
     exit_ms(1, ifp == NULL);
     n1 = get_second_para(ifp, 1);
     n2 = get_second_para(ifp, 2);
-    data = alloc_mat(n1, n2);
+    data = alloc_for_mat(n1, n2);
     exit_ms(1, data == NULL);
     insert_input(ifp, data, n1, n2);
     ret = target_runner(target, data, n1, n2, &n3);
