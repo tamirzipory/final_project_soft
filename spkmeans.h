@@ -29,7 +29,7 @@ double **calc_mul(int len, double **mat1, double **mat2);
 void sab_matrix(int len, double **mat1, double **mat2);
 double **calc_id_mat(int len);
 double **calc_spk_method(double **lnorm, int len, int *K);
-double **sort_matrix_values(double **mat, int len);
+double **mat_sorting(double **mat, int len);
 void func_heruicsic(double *eigenvalues, int len, int *K);
 double **calc_the_T(double **U_mat, int len, int K);
 
