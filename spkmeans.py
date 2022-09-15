@@ -106,7 +106,7 @@ def kMeans_init(K, data_points_array):
     arr_of_cent_index.append(data_points_array[index]) 
 
     for i in range(1, K):  
-        find_D(D_array, data_points_array, N, arr_of_cent_index)  
+        calc_d_array(D_array, data_points_array, N, arr_of_cent_index)  
         
         p_arr = np.array([(D_array[l] / D_array[N]) for l in range(N)])
         index = np.random.choice(arr_of_index, p=p_arr)
@@ -115,7 +115,7 @@ def kMeans_init(K, data_points_array):
     return the_op_arr, arr_of_cent_index
 
 
-def find_D(D_array, datapoints_array, max_iter, arr_of_cent_index):
+def calc_d_array(D_array, datapoints_array, max_iter, arr_of_cent_index):
     D_array[max_iter] = 0.0
     for l in range(max_iter):
        
@@ -129,13 +129,77 @@ def calc(x, y):
     return np.sum(np.multiply(z, z))
 
 
-def call_fit_ex2(max_iter, K, dimension, data_points, centroids, goal):
+def call_fit_ex2(max_iter, K, dim_of_mat, data_points, centroids, goal):
   
     try:
-        final_centroids = spkmeans_module.fit(max_iter, K, dimension, data_points, goal.value, centroids)
+        final_centroids = spkmeans_module.fit(max_iter, K, dim_of_mat, data_points, goal.value, centroids)
         return final_centroids
     except:
         handle_errors()
+
+
+def print_last(matrix, i):
+    print(",".join(["%.4f" % float(i) for i in matrix[i]]), end="")
+    
+def print_between(matrix, i):
+    print(",".join(["%.4f" % float(i) for i in matrix[i]]))
+
+def print_mat(matrix):
+    for i in range(len(matrix)):
+        if i == (len(matrix)-1):
+            print_last(matrix, i)
+        else:
+            print_between(matrix, i)
+            
+def init_centroids(k, vector_list, vector_list_ind, vector_num):
+    np.random.seed(0)
+    if (not (k < vector_num)):
+        print_err()
+        assert(k < vector_num)
+    dist = [0 for i in range(vector_num)]
+    second_centroids = [0 for i in range(k)] 
+    centroids_index = [0 for i in range(k)]
+    rand_index = np.random.choice(vector_num)
+    second_centroids[0] = vector_list[rand_index]
+    centroids_index[0] = vector_list_ind[rand_index]
+    z = 1
+    while z < k:
+        for i in range(vector_num):
+            if z == 1:
+                dist[i] = distance(vector_list[i], second_centroids[0])
+            else:
+                dist[i] = min_dist_centroid(
+                    vector_list, i, second_centroids, z, dist)
+        sum = np.sum(dist)
+        prob = dist/sum
+        chosen_ind = np.random.choice(vector_num, p=prob)
+        second_centroids[z] = vector_list[int(chosen_ind)]
+        centroids_index[z] = vector_list_ind[int(chosen_ind)]
+        z += 1
+    for i in range(k):
+        second_centroids[i] = second_centroids[i].tolist()
+    return second_centroids, centroids_index
+
+
+def readfile(filename):
+    file = pd.read_csv(filename, header=None)
+    ret = file
+    return ret
+
+def distance(vector_1, vector_2):
+    return np.sum((vector_1-vector_2)**2)
+
+
+def min_dist_centroid(vector_list, i, second_centroids, z, dist):
+    return min(distance(vector_list[i], second_centroids[z-1]), dist[i])
+
+
+def fix_mat_to_zeros(matrix):
+    for i in range(len(matrix)):
+        for j in range(len(matrix[0])):
+            if ((matrix[i][j] > -0.00005) and (matrix[i][j] < 0)):
+                matrix[i][j] = 0
+    return matrix
 
 
 
