@@ -9,40 +9,36 @@
 #include <ctype.h>
 #include <float.h>
 
-
-
-
-
 enum Goal{
-  wan_enum = 1,
-  ddg_enum = 2,
-  lnorm_enum = 3,
-  jacobi_enum = 4,
-  spk_enum = 5,
-  kmeans_enum = 6
+  wam_g = 1,
+  ddg_g = 2,
+  lnorm_g = 3,
+  jacobi_g = 4,
+  spk_g = 5,
+  spk_g2 = 6
 };
 
 
 double **adjacency_matrix(double **data_points, int dimension, int len);
-double euc_norm_calc(double *vector_1, double *vector_2, int dimension);
+double calc_euclidean_norm(double *vector_1, double *vector_2, int dimension);
 double **diag_mat(double **mat, int len);
 double **calc_L_mat(double **diag_mat, double **adj_mat, int len);
-void calcDMat(double **diag_mat, int N);
-double **alloc_for_mat(int num_rows, int num_cols);
+void cal_D12(double **diag_mat, int N);
+double **matrix_allocation(int num_rows, int num_cols);
 double **calc_mul(int len, double **mat1, double **mat2);
 void sab_matrix(int len, double **mat1, double **mat2);
 double **calc_id_mat(int len);
-double **cal_spk(double **lnorm, int len, int *K);
-double **sortMatValues(double **mat, int len);
-void heru_eigen(double *eigenvalues, int len, int *K);
+double **spk_algo(double **lnorm, int len, int *K);
+double **sort_matrix_values(double **mat, int len);
+void eigengap_heuristic(double *eigenvalues, int len, int *K);
 double **set_T(double **U_mat, int len, int K);
 
-
-double **triger_project(enum Goal goal, double **data_input, int len, int D, int *K);
+/* (spkmeans.c) (C) main's functions*/
+double **run_goal(enum Goal goal, double **data_input, int len, int D, int *K);
 void print_result(double **mat, int num_rows, int num_cols, enum Goal goal);
 void msg_and_exit(int error_type, int is_error);
 int get_n_d_parameters(FILE *ifp, int situation);
-void puts_input_to_data_mat(FILE *ifp, double **data_input, int num_of_rows, int num_of_cols);
+void set_input(FILE *ifp, double **data_input, int num_of_rows, int num_of_cols);
 void free_memory(double **ArrayToFree, int num_rows);
 double **calc_jacob(int len, double **A);
 void matrix_copy(int num_rows, int num_cols, double **dest_mat, double **src_mat);
@@ -59,5 +55,5 @@ double calc_off_diag(int len, double **A);
 int kMeans(int len, int K, double **points, double **cent, int dimension);
 int checkTheNorm(double **fresh, double **old, int dimension, int K);
 int assign_cluster(double **cent, double *Datapoint, int dimension, int K);
-void idkun_the_cents(double **fresh, double **old, int dimension, int K);
+void update_old_centroids(double **fresh, double **old, int dimension, int K);
 #endif
