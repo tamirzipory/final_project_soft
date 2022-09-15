@@ -47,7 +47,7 @@ double **sort_matrix_values(double **mat, int N){
         sort_mat[i + 1] = mat[max_index + 1];
         mat[0][max_index] = -1;
     }
-   =
+   
     free(mat[0]);
     free(mat);
     return sort_mat;
