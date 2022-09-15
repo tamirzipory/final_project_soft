@@ -173,19 +173,19 @@ int main(int argc, char *argv[]){
         target = lnorm_g;
     else if (strcmp("jacobi", argv[1]) == 0)
         target = jacobi_g;
-    msg_and_exit(0, 0 == target);
+    exit_ms(0, 0 == target);
 
     ifp = fopen(argv[2], "r");
-    msg_and_exit(1, ifp == NULL);
+    exit_ms(1, ifp == NULL);
     n1 = get_second_para(ifp, 1);
     n2 = get_second_para(ifp, 2);
     data = alloc_mat(n1, n2);
-    msg_and_exit(1, data == NULL);
+    exit_ms(1, data == NULL);
     insert_input(ifp, data, n1, n2);
     ret = target_runner(target, data, n1, n2, &n3);
     if (NULL == ret){ 
         free_memory(data, n1);
-        msg_and_exit(1, 1);
+        exit_ms(1, 1);
     }
 
     res_allPrint(ret, n1, n1, target);
