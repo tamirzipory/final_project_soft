@@ -16,7 +16,7 @@ double **spk_algo(double **lnorm, int N, int *K){ /* Called after steps 1-2 have
 
     /* The Eigengap Heuristic- was told not to handle a case where k=1*/
     if (*K == 0)
-        eigengap_heuristic(sort_transpose[0], N, K);
+        func_heruicsic(sort_transpose[0], N, K);
 
     /* Transpose on eigenvectors- get them to the right shape (vector in columns)*/
     eigenvectors = sort_transpose + 1; /* sort_transpose without eigenvalues*/
@@ -85,14 +85,13 @@ double **set_T(double **U, int N, int K){
     return T;
 }
 
-/* Receives eigenvalues (in decreasing order), N- number of values, K- number of clusters
- * Calculate K as described (Eigengap Heuristic algorithm) */
-void eigengap_heuristic(double *eigenvalues, int N, int *K){ /* (Assumption) lnorm formed as a decreasing ordered eigenvalues*/
+
+void func_heruicsic(double *eigenvalues, int len, int *K){ 
     int i;
     double curr_max_gap = DBL_MIN;
 
-    /* lmda(1)= E[0]>=lmda(2)=E[1]>=...>=lmda(n/2)=E[(N/2)-1]>=0*/
-    for (i = 1; i <= (int)(N / 2); i++){
+    int max_iter = (int)(len / 2);
+    for (i = 1; i <= max_iter; i++){
         if (curr_max_gap < fabs(eigenvalues[i - 1] - eigenvalues[i])){
             curr_max_gap = fabs(eigenvalues[i - 1] - eigenvalues[i]);
             *K = i;
