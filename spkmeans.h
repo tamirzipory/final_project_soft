@@ -41,7 +41,7 @@ double **set_T(double **U_mat, int len, int K);
 double **triger_project(enum Goal goal, double **data_input, int len, int D, int *K);
 void print_result(double **mat, int num_rows, int num_cols, enum Goal goal);
 void msg_and_exit(int error_type, int is_error);
-int getParaND(FILE *ifp, int situation);
+int get_n_d_parameters(FILE *ifp, int situation);
 void puts_input_to_data_mat(FILE *ifp, double **data_input, int num_of_rows, int num_of_cols);
 void free_memory(double **ArrayToFree, int num_rows);
 double **calc_jacob(int len, double **A);
