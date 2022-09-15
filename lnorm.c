@@ -1,23 +1,22 @@
 double **calc_L_mat(double **d_mat, double **a_mat, int len){
-   
     double **m1;
     double **m2;
     double **ret;
-    cal_D12(d_mat, len);
+    calcDMat(d_mat, len);
     m1 = calc_mul(len, d_mat, a_mat);
-    if (m1 == NULL)
+    if (NULL == m1)
         return NULL;
     m2 = calc_mul(len, m1, d_mat);
-    if (m1 == NULL)
+    if (NULL == m1)
         return NULL;
     free_memory(m1, len);
-    if (m2 == NULL)
+    if (NULL == m2)
         return NULL;
     ret = calc_id_mat(len);
-    if (m2 == NULL)
+    if (NULL == m2)
         return NULL;
-    if (ret == NULL){
-        free_memory(m2, len);
+    if (NULL == ret){
+        free_memory(m1, len);
         return NULL;
     }
     sab_matrix(len, ret, m2);
@@ -29,21 +28,24 @@ double divide_lnorm(double** mat, int i, int j){
     return (1 / sqrt(mat[i][j]));
 }
 
-void cal_D12(double **d_mat, int len){
-    int i=0;
+
+void calcDMat(double **diag_mat, int len){
+    int i = 0;
     while (i < len)
     {
-        d_mat[i][i] = divide_lnorm(d_mat, i, i);
+        diag_mat[i][i] = divide_lnorm(diag_mat, i, i);
         i++;
     }
 }
 
+/*create new mat with valus of the mult of mat1*mat2 when the mult is like algebra linearit*/
 double **calc_mul(int dim_of_the_mats, double **mat1, double **mat2){
     int i, j, z;
     double temp;
     double **ret = alloc_for_mat(dim_of_the_mats, dim_of_the_mats);
     if (ret == NULL)
         return NULL;
+
     i = 0;
     while(dim_of_the_mats>i){
         j = 0;
@@ -59,10 +61,10 @@ double **calc_mul(int dim_of_the_mats, double **mat1, double **mat2){
         }
         i++;
     }
-
     return ret;
 }
 
+/*sub mat1-mat2 and put the result in mat1*/
 void sab_matrix(int dim, double **mat1, double **mat2){
     int i, j;
     double temp;
