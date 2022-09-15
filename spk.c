@@ -48,25 +48,30 @@ double **mat_sorting(double **mat, int len){
     return ret;
 }
 
-double **calc_the_T(double **U, int N, int K){
-    int i, j, q;
+double **calc_the_T(double **u_mat, int len, int K){
+    int i, j, m;
     double sum = 0;
-
-    double **T = alloc_mat(N, K);
-    if (T == NULL)
+    double **ret = alloc_mat(len, K);
+    if (ret == NULL)
         return NULL;
-
-    for (i = 0; i < N; i++){
-        for (j = 0; j < K; j++){
+    i = 0;
+    while (i < len)
+    {
+        j = 0;
+        while(j < K){
             if (j == 0){
                 sum = 0;
-                for (q = 0; q < K; q++)
-                    sum += pow(U[i][q], 2);
+                for (m = 0; m < K; m++)
+                    sum = pow(u_mat[i][m], 2) + sum;
             }
-            T[i][j] = (sum != 0) ? (U[i][j] / sqrt(sum)) : 0;
+            if(sum != 0)
+                ret[i][j] = (u_mat[i][j] / sqrt(sum));
+            else ret[i][j] = 0;
+            j++;
         }
+        i++;
     }
-    return T;
+    return ret;
 }
 
 
