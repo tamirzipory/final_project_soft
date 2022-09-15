@@ -1,24 +1,21 @@
-double **calc_L_mat(double **diag_mat, double **adj_mat, int len){
+double **calc_L_mat(double **d_mat, double **a_mat, int len){
    
-    double **mul1, **mul2, **ret;
-
-    calc_norm_mat(diag_mat, len);
-    mul1 = calc_mul(len, diag_mat, adj_mat);
-    if (mul1 == NULL)
+    double **m1, **m2, **ret;
+    calc_norm_mat(d_mat, len);
+    m1 = calc_mul(len, d_mat, a_mat);
+    if (m1 == NULL)
         return NULL;
-
-    mul2 = calc_mul(len, mul1, diag_mat);
-    free_memory(mul1, len);
-    if (mul2 == NULL)
+    m2 = calc_mul(len, m1, d_mat);
+    free_memory(m1, len);
+    if (m2 == NULL)
         return NULL;
-
     ret = calc_id_mat(len);
     if (ret == NULL){
-        free_memory(mul2, len);
+        free_memory(m2, len);
         return NULL;
     }
-    sab_matrix(len, ret, mul2);
-    free_memory(mul2, len);
+    sab_matrix(len, ret, m2);
+    free_memory(m2, len);
     return ret;
 }
 
@@ -27,11 +24,10 @@ double divide_lnorm(double** mat, int i, int j){
     return (1 / sqrt(mat[i][j]));
 }
 
-
-void calc_norm_mat(double **diag_mat, int len){
+void calc_norm_mat(double **d_mat, int len){
     int i;
     for (i = 0; i < len; i++){
-        diag_mat[i][i] = divide_lnorm(diag_mat, i, i);
+        d_mat[i][i] = divide_lnorm(d_mat, i, i);
         
     }
 }
@@ -87,7 +83,6 @@ double **calc_id_mat(int dim_of_mat){
     double **id_mat = alloc_mat(dim_of_mat, dim_of_mat);
     if (id_mat == NULL)
         return NULL;
-
     i = 0, j = 0;
     while(i < dim_of_mat){
         j = 0;
@@ -102,6 +97,5 @@ double **calc_id_mat(int dim_of_mat){
         }
         i = i+1;
     }
-
     return id_mat;
 }
