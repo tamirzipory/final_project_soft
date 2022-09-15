@@ -5,6 +5,8 @@
 #include "lnorm.c"
 #include "jacobi.c"
 
+
+
 void invalid_input(){
     printf("Invalid Input!\n");
     exit(1);
@@ -16,7 +18,7 @@ void err_print(){
 }
 
 /*alloc mat according the dim*/
-double **matrix_allocation(int rows, int cols){
+double **alloc_for_mat(int rows, int cols){
     int i;
     double **mat = calloc(rows, (sizeof(double *)));
     if (NULL == mat)
@@ -126,7 +128,7 @@ void print_result(double **mat, int rows, int cols, enum Goal target)
 }
 
 /*the running function */
-double **run_goal(enum Goal target, double **data, int n1, int n2, int *n3){
+double **triger_project(enum Goal target, double **data, int n1, int n2, int *n3){
     double **ret;
     double **mat_dd,**mat_wam, **mat_lnorm;
     if (target == 4)
@@ -151,7 +153,7 @@ double **run_goal(enum Goal target, double **data, int n1, int n2, int *n3){
     if (target == 3 || ret == NULL)
         return ret;
     mat_lnorm = ret;
-    ret = spk_algo(mat_lnorm, n1, n3);
+    ret = cal_spk(mat_lnorm, n1, n3);
     free_memory(mat_lnorm, n1);
     return ret;
 }
@@ -166,23 +168,23 @@ int main(int argc, char *argv[]){
     msg_and_exit(0, argc != 3);
 
     if (strcmp("wam", argv[1]) == 0)
-        target = wam_g;
+        target = wan_enum;
     else if (strcmp("ddg", argv[1]) == 0)
-        target = ddg_g;
+        target = ddg_enum;
     else if (strcmp("lnorm", argv[1]) == 0)
-        target = lnorm_g;
+        target = lnorm_enum;
     else if (strcmp("jacobi", argv[1]) == 0)
-        target = jacobi_g;
+        target = jacobi_enum;
     msg_and_exit(0, 0 == target);
 
     ifp = fopen(argv[2], "r");
     msg_and_exit(1, ifp == NULL);
     n1 = get_n_d_parameters(ifp, 1);
     n2 = get_n_d_parameters(ifp, 2);
-    data = matrix_allocation(n1, n2);
+    data = alloc_for_mat(n1, n2);
     msg_and_exit(1, data == NULL);
     set_input(ifp, data, n1, n2);
-    ret = run_goal(target, data, n1, n2, &n3);
+    ret = triger_project(target, data, n1, n2, &n3);
     if (NULL == ret){ 
         free_memory(data, n1);
         msg_and_exit(1, 1);
@@ -191,7 +193,7 @@ int main(int argc, char *argv[]){
     print_result(ret, n1, n1, target);
     printf("\n");
     free_memory(data, n1);
-    if (jacobi_g != target)
+    if (jacobi_enum != target)
         free_memory(ret, n1);
     else free_memory(ret, n1 + 1);
     fclose(ifp);
