@@ -7,7 +7,7 @@ double **calc_jacob(int len_mat, double **A){
     if (V_mat == NULL)
         return NULL;
 
-    the_p_mat = matrix_allocation(len_mat, len_mat);
+    the_p_mat = alloc_mat(len_mat, len_mat);
     if (the_p_mat == NULL){
         free_memory(V_mat, len_mat);
         return NULL;
@@ -53,7 +53,7 @@ double **calc_jacob(int len_mat, double **A){
 
 void calc_first_mat(int len_mat, double **A, double d1, double d2, int i, int j, int *ret){
     int r;
-    double **rows_cols = matrix_allocation(2, len_mat);
+    double **rows_cols = alloc_mat(2, len_mat);
     if (NULL == rows_cols){
         *ret = 0;
         return;
@@ -209,7 +209,7 @@ double **miun_of_eig(int len, double *values, double **vectors){
     double **ret = NULL;
     int i;
     int plus_one = len+1;
-    ret = matrix_allocation(plus_one, len);
+    ret = alloc_mat(plus_one, len);
     if (ret == NULL)
         return NULL;
     i = 0;
