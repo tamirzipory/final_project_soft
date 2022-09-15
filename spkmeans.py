@@ -11,13 +11,11 @@ class Goal(Enum):
     lnorm = 3
     jacobi = 4
     spk = 5
-    spk_ex2 = 6
-
+    kmeans_enum = 6
 
 def print_output(mat_from_fit, N, goal):
     output_res = ""
     num_rows = N
-
     if(goal == Goal.jacobi):
         num_rows += 1
 
@@ -156,7 +154,7 @@ def main(argv):
         else:
             if(K == 0):
                 K = len(goal_matrix[0])
-            goal=Goal.spk_ex2
+            goal=Goal.kmeans_enum
             centroids_index, centroids = kMeans_init(K, goal_matrix)
             D=K
             print_output_spk(call_fit_ex2(N, K, D,goal_matrix, centroids, goal), K, D, centroids_index)
