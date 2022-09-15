@@ -16,7 +16,7 @@ void err_print(){
 }
 
 /*alloc mat according the dim*/
-double **alloc_mat(int rows, int cols){
+double **alloc_for_mat(int rows, int cols){
     int i;
     double **mat = calloc(rows, (sizeof(double *)));
     if (NULL == mat)
