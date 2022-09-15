@@ -16,7 +16,7 @@ void err_print(){
 }
 
 /*alloc mat according the dim*/
-double **matrix_allocation(int rows, int cols){
+double **alloc_mat(int rows, int cols){
     int i;
     double **mat = calloc(rows, (sizeof(double *)));
     if (NULL == mat)
@@ -179,7 +179,7 @@ int main(int argc, char *argv[]){
     msg_and_exit(1, ifp == NULL);
     n1 = get_n_d_parameters(ifp, 1);
     n2 = get_n_d_parameters(ifp, 2);
-    data = matrix_allocation(n1, n2);
+    data = alloc_mat(n1, n2);
     msg_and_exit(1, data == NULL);
     set_input(ifp, data, n1, n2);
     ret = run_goal(target, data, n1, n2, &n3);
