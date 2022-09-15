@@ -16,7 +16,7 @@ void err_print(){
 }
 
 /*alloc mat according the dim*/
-double **alloc_for_mat(int rows, int cols){
+double **alloc_mat(int rows, int cols){
     int i;
     double **mat = calloc(rows, (sizeof(double *)));
     if (NULL == mat)
@@ -31,7 +31,7 @@ double **alloc_for_mat(int rows, int cols){
     return mat;
 }
 /*return the dimentins according the purpose (dim or num of vectors*/
-int get_second_para(FILE *ifp, int situattion){
+int get_n_d_parameters(FILE *ifp, int situattion){
     char ch;
     int count = 0;
     ch = 0;
@@ -68,7 +68,7 @@ void matrix_copy(int rows, int cols, double **copy_mat, double **original_mat){
 }
 
 /* set the inputs of the file to the mat of data according the dimentions*/
-void insert_input(FILE *ifp, double **data, int rows, int cols){
+void set_input(FILE *ifp, double **data, int rows, int cols){
     int i, j;
     double value;
     i = 0, j = 0;
@@ -96,7 +96,7 @@ void free_memory(double **mat, int rows){
 }
 
 /*Replace the */
-void exit_ms(int type_of_err, int err){
+void msg_and_exit(int type_of_err, int err){
     if (err == 1){
         if (type_of_err != 0)
             err_print();
@@ -105,7 +105,7 @@ void exit_ms(int type_of_err, int err){
 }
 
 /* print matrix according the pourpose that we got from the user*/
-void res_allPrint(double **mat, int rows, int cols, enum Goal target)
+void print_result(double **mat, int rows, int cols, enum Goal target)
 {
     int i, j;
     if (target == 4)
@@ -126,7 +126,7 @@ void res_allPrint(double **mat, int rows, int cols, enum Goal target)
 }
 
 /*the running function */
-double **target_runner(enum Goal target, double **data, int n1, int n2, int *n3){
+double **run_goal(enum Goal target, double **data, int n1, int n2, int *n3){
     double **ret;
     double **mat_dd,**mat_wam, **mat_lnorm;
     if (target == 4)
@@ -163,7 +163,7 @@ int main(int argc, char *argv[]){
     FILE *ifp;
     enum Goal target = 0;
     n3 = 0;
-    exit_ms(0, argc != 3);
+    msg_and_exit(0, argc != 3);
 
     if (strcmp("wam", argv[1]) == 0)
         target = wam_g;
@@ -173,22 +173,22 @@ int main(int argc, char *argv[]){
         target = lnorm_g;
     else if (strcmp("jacobi", argv[1]) == 0)
         target = jacobi_g;
-    exit_ms(0, 0 == target);
+    msg_and_exit(0, 0 == target);
 
     ifp = fopen(argv[2], "r");
-    exit_ms(1, ifp == NULL);
-    n1 = get_second_para(ifp, 1);
-    n2 = get_second_para(ifp, 2);
-    data = alloc_for_mat(n1, n2);
-    exit_ms(1, data == NULL);
-    insert_input(ifp, data, n1, n2);
-    ret = target_runner(target, data, n1, n2, &n3);
+    msg_and_exit(1, ifp == NULL);
+    n1 = get_n_d_parameters(ifp, 1);
+    n2 = get_n_d_parameters(ifp, 2);
+    data = alloc_mat(n1, n2);
+    msg_and_exit(1, data == NULL);
+    set_input(ifp, data, n1, n2);
+    ret = run_goal(target, data, n1, n2, &n3);
     if (NULL == ret){ 
         free_memory(data, n1);
-        exit_ms(1, 1);
+        msg_and_exit(1, 1);
     }
 
-    res_allPrint(ret, n1, n1, target);
+    print_result(ret, n1, n1, target);
     printf("\n");
     free_memory(data, n1);
     if (jacobi_g != target)
