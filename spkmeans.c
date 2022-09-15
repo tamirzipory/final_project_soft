@@ -31,7 +31,7 @@ double **alloc_mat(int rows, int cols){
     return mat;
 }
 /*return the dimentins according the purpose (dim or num of vectors*/
-int get_n_d_parameters(FILE *ifp, int situattion){
+int get_second_para(FILE *ifp, int situattion){
     char ch;
     int count = 0;
     ch = 0;
@@ -68,7 +68,7 @@ void matrix_copy(int rows, int cols, double **copy_mat, double **original_mat){
 }
 
 /* set the inputs of the file to the mat of data according the dimentions*/
-void set_input(FILE *ifp, double **data, int rows, int cols){
+void insert_input(FILE *ifp, double **data, int rows, int cols){
     int i, j;
     double value;
     i = 0, j = 0;
@@ -95,8 +95,8 @@ void free_memory(double **mat, int rows){
     free(mat);
 }
 
-/*Replace the */
-void msg_and_exit(int type_of_err, int err){
+/*Replace the assert*/
+void exit_ms(int type_of_err, int err){
     if (err == 1){
         if (type_of_err != 0)
             err_print();
@@ -105,7 +105,7 @@ void msg_and_exit(int type_of_err, int err){
 }
 
 /* print matrix according the pourpose that we got from the user*/
-void print_result(double **mat, int rows, int cols, enum Goal target)
+void res_allPrint(double **mat, int rows, int cols, enum Goal target)
 {
     int i, j;
     if (target == 4)
@@ -126,17 +126,19 @@ void print_result(double **mat, int rows, int cols, enum Goal target)
 }
 
 /*the running function */
-double **run_goal(enum Goal target, double **data, int n1, int n2, int *n3){
+double **target_runner(enum Goal target, double **data, int n1, int n2, int *n3){
     double **ret;
     double **mat_dd,**mat_wam, **mat_lnorm;
     if (target == 4)
         return calc_jacob(n1, data);
     
     ret = adjacency_matrix(data, n2, n1);
-    if (ret == NULL)
-        return NULL;
-    if(target == 1)
-        return ret;
+    if(ret == NULL || target == 1){
+       if (ret == NULL)
+           return NULL;
+       if(target == 1)
+           return ret;
+    }
     mat_wam = ret;
     ret = diag_mat(mat_wam, n1);
     if (target == 2 ||ret == NULL){
@@ -163,7 +165,7 @@ int main(int argc, char *argv[]){
     FILE *ifp;
     enum Goal target = 0;
     n3 = 0;
-    msg_and_exit(0, argc != 3);
+    exit_ms(0, argc != 3);
 
     if (strcmp("wam", argv[1]) == 0)
         target = wam_g;
@@ -173,22 +175,22 @@ int main(int argc, char *argv[]){
         target = lnorm_g;
     else if (strcmp("jacobi", argv[1]) == 0)
         target = jacobi_g;
-    msg_and_exit(0, 0 == target);
+    exit_ms(0, 0 == target);
 
     ifp = fopen(argv[2], "r");
-    msg_and_exit(1, ifp == NULL);
-    n1 = get_n_d_parameters(ifp, 1);
-    n2 = get_n_d_parameters(ifp, 2);
+    exit_ms(1, ifp == NULL);
+    n1 = get_second_para(ifp, 1);
+    n2 = get_second_para(ifp, 2);
     data = alloc_mat(n1, n2);
-    msg_and_exit(1, data == NULL);
-    set_input(ifp, data, n1, n2);
-    ret = run_goal(target, data, n1, n2, &n3);
+    exit_ms(1, data == NULL);
+    insert_input(ifp, data, n1, n2);
+    ret = target_runner(target, data, n1, n2, &n3);
     if (NULL == ret){ 
         free_memory(data, n1);
-        msg_and_exit(1, 1);
+        exit_ms(1, 1);
     }
 
-    print_result(ret, n1, n1, target);
+    res_allPrint(ret, n1, n1, target);
     printf("\n");
     free_memory(data, n1);
     if (jacobi_g != target)
