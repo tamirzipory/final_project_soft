@@ -77,8 +77,7 @@ def check_input(given_input, argc):
     if (argc != 4):
         handle_errors_input()
    
-    is_valid = given_input[1]
-    is_valid = is_valid.isnumeric()
+    is_valid = given_input[1].isnumeric()
     if is_valid:
         is_valid = int(given_input[1]) >= 0 
     
