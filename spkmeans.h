@@ -55,5 +55,5 @@ double calc_off_diag(int len, double **A);
 int kMeans(int len, int K, double **points, double **cent, int dimension);
 int checkTheNorm(double **fresh, double **old, int dimension, int K);
 int assign_cluster(double **cent, double *Datapoint, int dimension, int K);
-void update_old_centroids(double **fresh, double **old, int dimension, int K);
+void idcon_cent(double **fresh, double **old, int dimension, int K);
 #endif
