@@ -18,7 +18,7 @@ double **spk_algo(double **lnorm, int len, int *K){ /* Called after steps 1-2 ha
 
     eigenvectors = miun_T_mat + 1; 
     get_mat_transe(eigenvectors, len);
-    the_T_mat = set_the_T_mat(eigenvectors, len, *K);
+    the_T_mat = set_T(eigenvectors, len, *K);
     free_memory(miun_T_mat, len + 1);
     return the_T_mat;
 }
@@ -54,7 +54,7 @@ double **sort_matrix_values(double **mat, int N){
 }
 
 
-double **set_the_T_mat(double **the_u_mat, int len, int K){
+double **set_T(double **the_u_mat, int len, int K){
     int i, j, in;
     double sum = 0;
     double **the_T_mat = alloc_for_mat(len, K);
