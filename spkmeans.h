@@ -36,8 +36,8 @@ double **calc_the_T(double **U_mat, int len, int K);
 /* (spkmeans.c) (C) main's functions*/
 double **run_goal(enum Goal goal, double **data_input, int len, int D, int *K);
 void print_result(double **mat, int num_rows, int num_cols, enum Goal goal);
-void msg_and_exit(int error_type, int is_error);
-int get_n_d_parameters(FILE *ifp, int situation);
+void exit_ms(int error_type, int is_error);
+int parmars_getter(FILE *ifp, int situation);
 void set_input(FILE *ifp, double **data_input, int num_of_rows, int num_of_cols);
 void free_memory(double **ArrayToFree, int num_rows);
 double **calc_jacob(int len, double **A);
