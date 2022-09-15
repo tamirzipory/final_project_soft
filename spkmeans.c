@@ -132,7 +132,7 @@ double **run_goal(enum Goal target, double **data, int n1, int n2, int *n3){
     if (target == 4)
         return calc_jacob(n1, data);
     
-    ret = adjacency_matrix(data, n2, n1);
+    ret = mat_adj(data, n2, n1);
     if (ret == NULL)
         return NULL;
     if(target == 1)
