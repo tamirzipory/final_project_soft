@@ -5,6 +5,8 @@
 #include "lnorm.c"
 #include "jacobi.c"
 
+
+
 void invalid_input(){
     printf("Invalid Input!\n");
     exit(1);
@@ -31,7 +33,7 @@ double **alloc_for_mat(int rows, int cols){
     return mat;
 }
 /*return the dimentins according the purpose (dim or num of vectors*/
-int getParaND(FILE *ifp, int situattion){
+int get_n_d_parameters(FILE *ifp, int situattion){
     char ch;
     int count = 0;
     ch = 0;
@@ -68,7 +70,7 @@ void matrix_copy(int rows, int cols, double **copy_mat, double **original_mat){
 }
 
 /* set the inputs of the file to the mat of data according the dimentions*/
-void puts_input_to_data_mat(FILE *ifp, double **data, int rows, int cols){
+void set_input(FILE *ifp, double **data, int rows, int cols){
     int i, j;
     double value;
     i = 0, j = 0;
@@ -95,7 +97,7 @@ void free_memory(double **mat, int rows){
     free(mat);
 }
 
-/*Replace the assert message because we musn't to use assert in this course*/
+/*Replace the */
 void msg_and_exit(int type_of_err, int err){
     if (err == 1){
         if (type_of_err != 0)
@@ -133,12 +135,10 @@ double **triger_project(enum Goal target, double **data, int n1, int n2, int *n3
         return calc_jacob(n1, data);
     
     ret = adjacency_matrix(data, n2, n1);
-    if(ret == NULL || target == 1){
-        if (ret == NULL)
-            return NULL;
-        if(target == 1)
-            return ret;
-    }
+    if (ret == NULL)
+        return NULL;
+    if(target == 1)
+        return ret;
     mat_wam = ret;
     ret = diag_mat(mat_wam, n1);
     if (target == 2 ||ret == NULL){
@@ -179,17 +179,17 @@ int main(int argc, char *argv[]){
 
     ifp = fopen(argv[2], "r");
     msg_and_exit(1, ifp == NULL);
-    n2 = getParaND(ifp, 2);
-    n1 = getParaND(ifp, 1);
-    n2 = getParaND(ifp, 2);
+    n1 = get_n_d_parameters(ifp, 1);
+    n2 = get_n_d_parameters(ifp, 2);
     data = alloc_for_mat(n1, n2);
     msg_and_exit(1, data == NULL);
-    puts_input_to_data_mat(ifp, data, n1, n2);
+    set_input(ifp, data, n1, n2);
     ret = triger_project(target, data, n1, n2, &n3);
     if (NULL == ret){ 
         free_memory(data, n1);
         msg_and_exit(1, 1);
     }
+
     print_result(ret, n1, n1, target);
     printf("\n");
     free_memory(data, n1);
