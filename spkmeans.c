@@ -5,6 +5,15 @@
 #include "lnorm.c"
 #include "jacobi.c"
 
+enum Goal{
+  wan_enum = 1,
+  ddg_enum = 2,
+  lnorm_enum = 3,
+  jacobi_enum = 4,
+  spk_enum = 5,
+  kmeans_enum = 6
+};
+
 void invalid_input(){
     printf("Invalid Input!\n");
     exit(1);
@@ -151,7 +160,7 @@ double **triger_project(enum Goal target, double **data, int n1, int n2, int *n3
     if (target == 3 || ret == NULL)
         return ret;
     mat_lnorm = ret;
-    ret = spk_algo(mat_lnorm, n1, n3);
+    ret = cal_spk(mat_lnorm, n1, n3);
     free_memory(mat_lnorm, n1);
     return ret;
 }
