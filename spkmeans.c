@@ -151,7 +151,7 @@ double **run_goal(enum Goal target, double **data, int n1, int n2, int *n3){
     if (target == 3 || ret == NULL)
         return ret;
     mat_lnorm = ret;
-    ret = spk_algo(mat_lnorm, n1, n3);
+    ret = calc_spk_method(mat_lnorm, n1, n3);
     free_memory(mat_lnorm, n1);
     return ret;
 }
