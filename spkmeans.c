@@ -16,7 +16,7 @@ void err_print(){
 }
 
 /*alloc mat according the dim*/
-double **matrix_allocation(int rows, int cols){
+double **alloc_for_mat(int rows, int cols){
     int i;
     double **mat = calloc(rows, (sizeof(double *)));
     if (NULL == mat)
@@ -126,7 +126,7 @@ void print_result(double **mat, int rows, int cols, enum Goal target)
 }
 
 /*the running function */
-double **run_goal(enum Goal target, double **data, int n1, int n2, int *n3){
+double **triger_project(enum Goal target, double **data, int n1, int n2, int *n3){
     double **ret;
     double **mat_dd,**mat_wam, **mat_lnorm;
     if (target == 4)
@@ -179,10 +179,10 @@ int main(int argc, char *argv[]){
     msg_and_exit(1, ifp == NULL);
     n1 = get_n_d_parameters(ifp, 1);
     n2 = get_n_d_parameters(ifp, 2);
-    data = matrix_allocation(n1, n2);
+    data = alloc_for_mat(n1, n2);
     msg_and_exit(1, data == NULL);
     set_input(ifp, data, n1, n2);
-    ret = run_goal(target, data, n1, n2, &n3);
+    ret = triger_project(target, data, n1, n2, &n3);
     if (NULL == ret){ 
         free_memory(data, n1);
         msg_and_exit(1, 1);
