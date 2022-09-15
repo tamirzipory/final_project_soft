@@ -1,7 +1,7 @@
 double **diag_mat(double **mat, int len){
     int i, j;
     double sum;
-    double **ret = alloc_mat(len, len);
+    double **ret = alloc_for_mat(len, len);
     if (ret == NULL)
         return NULL;
     sum = 0, i = 0;
