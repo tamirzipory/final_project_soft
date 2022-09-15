@@ -1,40 +1,40 @@
-double **calc_L_mat(double **diag_mat, double **adj_mat, int len){
-   
-    double **mul1, **mul2, **ret;
-
-    cal_D12(diag_mat, len);
-    mul1 = calc_mul(len, diag_mat, adj_mat);
-    if (mul1 == NULL)
+double **calc_L_mat(double **d_mat, double **a_mat, int len){
+    double **m1;
+    double **m2;
+    double **ret;
+    calcDMat(d_mat, len);
+    m1 = calc_mul(len, d_mat, a_mat);
+    if (NULL == m1)
         return NULL;
-
-    mul2 = calc_mul(len, mul1, diag_mat);
-    free_memory(mul1, len);
-    if (mul2 == NULL)
+    m2 = calc_mul(len, m1, d_mat);
+    if (NULL == m1)
         return NULL;
-
+    free_memory(m1, len);
+    if (NULL == m2)
+        return NULL;
     ret = calc_id_mat(len);
-    if (ret == NULL){
-        free_memory(mul2, len);
+    if (NULL == m2)
+        return NULL;
+    if (NULL == ret){
+        free_memory(m1, len);
         return NULL;
     }
-    sab_matrix(len, ret, mul2);
-    free_memory(mul2, len);
+    sab_matrix(len, ret, m2);
+    free_memory(m2, len);
     return ret;
 }
-
 
 double divide_lnorm(double** mat, int i, int j){
     return (1 / sqrt(mat[i][j]));
 }
 
 
-void cal_D12(double **diag_mat, int len){
-    int i;
-    for (i = 0; i < len; i++){
+void calcDMat(double **diag_mat, int len){
+    int i = 0;
+    while (i < len)
+    {
         diag_mat[i][i] = divide_lnorm(diag_mat, i, i);
-        /*
-        diag_mat[i][i] = 1 / sqrt(diag_mat[i][i]);
-        */
+        i++;
     }
 }
 
@@ -61,17 +61,6 @@ double **calc_mul(int dim_of_the_mats, double **mat1, double **mat2){
         }
         i++;
     }
-
-/*
-    for (i = 0; i < dim_of_the_mats; i++)
-    {
-        for (j = 0; j < dim_of_the_mats; j++){
-            ret[i][j] = 0;
-            for (z = 0; z < dim_of_the_mats; k++)
-                ret[i][j] += mat1[i][z] * mat2[z][j];   
-        }
-    }
-    */
     return ret;
 }
 
@@ -89,46 +78,24 @@ void sab_matrix(int dim, double **mat1, double **mat2){
         }
         i++;
     }
-    /*
-    for (i = 0; i < dim; i++){
-        for (j = 0; j < dim; j++)
-            mat1[i][j] -= mat2[i][j];
-    }
-    */
 }
 
 /*calculate id-mat*/
 double **calc_id_mat(int dim_of_mat){
     int i, j;
     double **id_mat = alloc_for_mat(dim_of_mat, dim_of_mat);
-    if (id_mat == NULL)
+    if (NULL == id_mat)
         return NULL;
-
     i = 0, j = 0;
     while(i < dim_of_mat){
         j = 0;
         while(dim_of_mat > j){
-            if(i == j){
+            if(i == j)
                 id_mat[i][j] = 1;
-            }
-            else{
-                id_mat[i][j] = 0;
-            }
+            else id_mat[i][j] = 0;
             j = j + 1;;
         }
         i = i+1;
     }
-/*
-    for (i = 0; i < dim_of_mat; i++){
-        for (j = 0; j < dim_of_mat; j++)
-            if(i == j){
-                id_mat[i][j] = 1;
-            }
-            else{
-                id_mat[i][j] = 0;
-            }
-
-    }
-    */
     return id_mat;
 }
