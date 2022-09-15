@@ -144,12 +144,12 @@ def main(argv):
     inputs = argv
     inputs_len = len(inputs)
     K, goal = check_input(argv, inputs_len)
-    data_points_array, max_iter, D = get_goal_input(argv[3])
+    data_points_array, max_iter, d_arr = get_goal_input(argv[3])
 
     if K > max_iter:
         handle_errors_input()
     try:
-        goal_matrix = spkmeans_module.fit(max_iter, K, D, data_points_array.tolist(), goal.value, [])
+        goal_matrix = spkmeans_module.fit(max_iter, K, d_arr, data_points_array.tolist(), goal.value, [])
         if(goal != Goal.spk):
             print_output(goal_matrix, max_iter, goal)
         else:
@@ -158,7 +158,7 @@ def main(argv):
             goal=Goal.kmeans_enum
             centroids_index, centroids = kMeans_init(K, goal_matrix)
             D=K
-            display_out_of_spk(call_fit_ex2(max_iter, K, D,goal_matrix, centroids, goal), K, D, centroids_index)
+            display_out_of_spk(call_fit_ex2(max_iter, K, d_arr, goal_matrix, centroids, goal), K, d_arr, centroids_index)
 
     except:
         handle_errors()
