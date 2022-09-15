@@ -16,7 +16,7 @@ void err_print(){
 }
 
 /*alloc mat according the dim*/
-double **alloc_for_mat(int rows, int cols){
+double **matrix_allocation(int rows, int cols){
     int i;
     double **mat = calloc(rows, (sizeof(double *)));
     if (NULL == mat)
@@ -58,14 +58,12 @@ int get_n_d_parameters(FILE *ifp, int situattion){
 /* receive the mats copy_mat,original_mat and dimentions of them and copy the value of copy_mat of the values of original_mat */
 void matrix_copy(int rows, int cols, double **copy_mat, double **original_mat){
     int i, j;
-    i = 0;
-    while(i< rows){
+    for (i = 0; i < rows; i++){
         j = 0;
         while(j < cols){
             copy_mat[i][j] = original_mat[i][j];
             j++;
-        }      
-        i++;
+        }        
     }
 }
 
@@ -97,7 +95,7 @@ void free_memory(double **mat, int rows){
     free(mat);
 }
 
-/*Replace the assert*/
+/*Replace the */
 void msg_and_exit(int type_of_err, int err){
     if (err == 1){
         if (type_of_err != 0)
@@ -135,12 +133,10 @@ double **run_goal(enum Goal target, double **data, int n1, int n2, int *n3){
         return calc_jacob(n1, data);
     
     ret = adjacency_matrix(data, n2, n1);
-    if(NULL == ret || target == 1){
-        if (ret == NULL)
-             return NULL; 
-        if(target == 1)
-            return ret;
-    }
+    if (ret == NULL)
+        return NULL;
+    if(target == 1)
+        return ret;
     mat_wam = ret;
     ret = diag_mat(mat_wam, n1);
     if (target == 2 ||ret == NULL){
@@ -183,7 +179,7 @@ int main(int argc, char *argv[]){
     msg_and_exit(1, ifp == NULL);
     n1 = get_n_d_parameters(ifp, 1);
     n2 = get_n_d_parameters(ifp, 2);
-    data = alloc_for_mat(n1, n2);
+    data = matrix_allocation(n1, n2);
     msg_and_exit(1, data == NULL);
     set_input(ifp, data, n1, n2);
     ret = run_goal(target, data, n1, n2, &n3);
