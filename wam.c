@@ -1,27 +1,39 @@
-double **adjacency_matrix(double **data_points, int dimension, int N){
+double **mat_adj(double **points, int dim, int len){
     int i, j;
-
-    double **adj_mat = alloc_mat(N, N);
-    if (adj_mat == NULL)
+    double temp;
+    double **a = alloc_mat(len, len);
+    if (a == NULL)
         return NULL;
-
-    for (i = 0; i < N; i++){
-        for (j = i; j < N; j++){
-            adj_mat[i][j] = (i == j) ? 0 : (exp((euc_norm_calc(data_points[i], data_points[j], dimension)) / (-2)));
-            adj_mat[j][i] = adj_mat[i][j];
-        }
+    i = 0;
+    while (i < len)
+    {
+        j = 0;
+        while (j < len)
+        {
+           if(i == j)
+               a[i][j] = 0;
+            else {
+                temp = (exp((euc_norm_calc(points[i], points[j], dim)) / (-2)));
+                a[i][j] =temp; 
+            }
+           j++;
+        }   
+        i++;
     }
-    return adj_mat;
+    return a;
 }
 
 
-double euc_norm_calc(double *arr1, double *arr2, int dimension){
+double euc_norm_calc(double *arr1, double *arr2, int dim){
     int j;
-    double sum;
+    double sum, temp;
     sum = 0;
-    for (j = 0; j < dimension; j++)
-        sum += pow(arr1[j] - arr2[j], 2);
-    
-    sum = sqrt(sum);
+    j = 0;
+    while(j < dim){
+        sum = pow(arr1[j] - arr2[j], 2) + sum;
+        j++;
+    }
+    temp = sqrt(sum);
+    sum = temp;
     return sum;
 }
