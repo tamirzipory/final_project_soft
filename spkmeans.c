@@ -182,13 +182,13 @@ int main(int argc, char *argv[]){
     data = alloc_mat(n1, n2);
     msg_and_exit(1, data == NULL);
     set_input(ifp, data, n1, n2);
-    ret = run_goal(target, data, n1, n2, &n3);
+    ret = target_runner(target, data, n1, n2, &n3);
     if (NULL == ret){ 
         free_memory(data, n1);
         msg_and_exit(1, 1);
     }
 
-    print_result(ret, n1, n1, target);
+    res_allPrint(ret, n1, n1, target);
     printf("\n");
     free_memory(data, n1);
     if (jacobi_g != target)
