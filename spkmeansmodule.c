@@ -6,7 +6,7 @@ static PyObject *fit(PyObject *self, PyObject *args)
 {
     PyObject *points_of_py, *cent_py;
     PyObject *curr_points, *d_curr, *res, *vector_curr, *curr_cent;
-    int cluster_count, vectors_count, vectors_count_alloc, ret;
+    int cluster_count, vectors_count, vectors_count_alloc, ret, num_of_vectors;
     int len, K, D, i, j;
     double **Datapoints, **Centroids, **goal_result;
     enum Goal goal;
@@ -48,8 +48,8 @@ static PyObject *fit(PyObject *self, PyObject *args)
         {
             d_curr = PyList_GetItem(curr_points, j);
             Datapoints[i][j] = PyFloat_AsDouble(d_curr);
-            if (oal == 6){
-                if(i < k){
+            if (goal == 6){
+                if(i < K){
                    d_curr = PyList_GetItem(curr_cent, j);
                    Centroids[i][j] = PyFloat_AsDouble(d_curr);
                 }
@@ -75,7 +75,7 @@ static PyObject *fit(PyObject *self, PyObject *args)
             cluster_count = cluster_count +1;
         }
         else cluster_count = len;
-        num_of_vectors=len; 
+        num_of_vectors = len; 
         if(goal==5)
             num_of_vectors=K; 
     } else {
