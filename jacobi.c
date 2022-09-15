@@ -22,7 +22,6 @@ void calc_curr_P(int max_iter, double **the_p_mat, int i, int j, double d1, doub
     }
 }
 
-
 void calc_first_mat(int len_mat, double **A, double d1, double d2, int i, int j, int *ret){
     int r;
     double **rows_cols = alloc_for_mat(2, len_mat);
@@ -33,14 +32,14 @@ void calc_first_mat(int len_mat, double **A, double d1, double d2, int i, int j,
     r = 0;
     while(r < len_mat){
         if(r != i && r != j){
-            rows_cols[0][r] = d1 * A[r][i] - d2 * A[r][j];
-            rows_cols[1][r] = d1 * A[r][j] + d2 * A[r][i];
+            rows_cols[0][r] = d1 *A[r][i] - d2 *A[r][j];
+            rows_cols[1][r] = d1 *A[r][j] + d2 *A[r][i];
         }
         else if(r == i || r == j){
             if(r == i)
-               rows_cols[0][r] = d2 * d2 * A[j][j] + d1 *d1 * A[i][i] - 2 * d2 * d1 * A[i][j];
+               rows_cols[0][r] = d2 * d2 * A[j][j] + d1 *d1 * A[i][i] - 2 * d2 * d1 *A[i][j];
             if(r == j)
-               rows_cols[1][r] = 2 * d2 * d1 * A[i][j] + d2 * d2 * A[i][i] + d1 * d1 * A[j][j];
+               rows_cols[1][r] = 2 * d2 * d1 * A[i][j] + d2 * d2 * A[i][i] + d1 * d1*A[j][j];
         }
         else {
             rows_cols[0][r] = 0;
