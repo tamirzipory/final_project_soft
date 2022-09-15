@@ -5,7 +5,7 @@ double **calc_spk_method(double **ln, int len, int *K){
         return NULL;
     vectors_e = output_j + 1; 
     get_mat_transe(vectors_e, len);
-    sort_t = sort_matrix_values(output_j, len);
+    sort_t = mat_sorting(output_j, len);
     if (sort_t == NULL)
         return NULL;
     if (*K == 0)
@@ -17,30 +17,35 @@ double **calc_spk_method(double **ln, int len, int *K){
     return ret;
 }
 
-double **sort_matrix_values(double **mat, int N){
+double **mat_sorting(double **mat, int len){
     int i, j, max_index;
     double max_value;
-    double **sort_mat = alloc_mat(N + 1, N);
-    if (sort_mat == NULL){
-        free_memory(mat, N + 1);
+    double **ret = alloc_mat(len + 1, len);
+    if (ret == NULL){
+        free_memory(mat, len + 1);
         return NULL;
     }
-    for (i = 0; i < N; i++){
+    i = 0;
+    while (i < len)
+    {
         max_index = -1;
         max_value = -1;
-        for (j = 0; j < N; j++){
+        j=0;
+        while(j < len){
             if (max_value < mat[0][j]){
                 max_index = j;
                 max_value = mat[0][j];
             }
+            j++;
         }
-        sort_mat[0][i] = max_value;
-        sort_mat[i + 1] = mat[max_index + 1];
+        ret[0][i] = max_value;
+        ret[i + 1] = mat[max_index + 1];
         mat[0][max_index] = -1;
+        i++;
     }
     free(mat[0]);
     free(mat);
-    return sort_mat;
+    return ret;
 }
 
 double **calc_the_T(double **U, int N, int K){
