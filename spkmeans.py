@@ -146,21 +146,21 @@ def main(argv):
     inputs = argv
     inputs_len = len(inputs)
     K, goal = check_input(argv, inputs_len)
-    data_points_array, len, the_g = get_goal_input(argv[3])
+    data_points_array, len_of, the_g = get_goal_input(argv[3])
 
-    if K > len:
+    if K > len_of:
         handle_errors_input()
     try:
-        goal_matrix = spkmeans_module.fit(len, K, the_g, data_points_array.tolist(), goal.value, [])
+        goal_matrix = spkmeans_module.fit(len_of, K, the_g, data_points_array.tolist(), goal.value, [])
         if(goal != Goal.spk):
-            print_output(goal_matrix, len, goal)
+            print_output(goal_matrix, len_of, goal)
         else:
             if(K == 0):
                 K = len(goal_matrix[0])
             goal=Goal.second_kmeans
             centroids_index, centroids = start_kmeans(K, goal_matrix)
             the_g=K
-            print_output_spk(call_fit_ex2(len, K, the_g,goal_matrix, centroids, goal), K, the_g, centroids_index)
+            print_output_spk(call_fit_ex2(len_of, K, the_g,goal_matrix, centroids, goal), K, the_g, centroids_index)
 
     except:
         handle_errors()
