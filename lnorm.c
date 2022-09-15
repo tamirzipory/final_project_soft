@@ -2,7 +2,7 @@ double **calc_L_mat(double **diag_mat, double **adj_mat, int len){
    
     double **mul1, **mul2, **ret;
 
-    cal_D12(diag_mat, len);
+    calc_norm_mat(diag_mat, len);
     mul1 = calc_mul(len, diag_mat, adj_mat);
     if (mul1 == NULL)
         return NULL;
@@ -27,23 +27,18 @@ double divide_lnorm(double** mat, int i, int j){
     return (1 / sqrt(mat[i][j]));
 }
 
-/* Receives D- diagonal degree matrix, N- number of rows/columns
- * Updates D to D^(-0.5)*/
-void cal_D12(double **diag_mat, int len){
+
+void calc_norm_mat(double **diag_mat, int len){
     int i;
     for (i = 0; i < len; i++){
         diag_mat[i][i] = divide_lnorm(diag_mat, i, i);
-        /*
-        diag_mat[i][i] = 1 / sqrt(diag_mat[i][i]);
-        */
+        
     }
 }
 
-/* Receives matrices: A,B and N- number of rows/columns
- * Returns matrix C= A*B
- * If an error occurred returns NULL*/
+/*do mul between 2 mats and put the result in new ret mat*/
 double **calc_mul(int dim_of_the_mats, double **mat1, double **mat2){
-    int i, j, z;
+    int i, j, index2;
     double temp;
     double **ret = alloc_mat(dim_of_the_mats, dim_of_the_mats);
     if (ret == NULL)
@@ -54,32 +49,22 @@ double **calc_mul(int dim_of_the_mats, double **mat1, double **mat2){
         j = 0;
         while(dim_of_the_mats>j){
             ret[i][j] = 0;
-            z = 0;
-            while(dim_of_the_mats > z){
-                temp = mat1[i][z] * mat2[z][j];
+            index2 = 0;
+            while(dim_of_the_mats > index2){
+                temp = mat1[i][index2] * mat2[index2][j];
                 ret[i][j] += temp;
-                z++;
+                index2++;
             }
             j++;
         }
         i++;
     }
 
-/*
-    for (i = 0; i < dim_of_the_mats; i++)
-    {
-        for (j = 0; j < dim_of_the_mats; j++){
-            ret[i][j] = 0;
-            for (z = 0; z < dim_of_the_mats; k++)
-                ret[i][j] += mat1[i][z] * mat2[z][j];   
-        }
-    }
-    */
+
     return ret;
 }
 
-/* Receives matrices: A,B and N- number of rows/columns
- * Updates A= A-B */
+/*sum mat1 and mat2 and put the result in mat1*/
 void sab_matrix(int dim, double **mat1, double **mat2){
     int i, j;
     double temp;
@@ -93,12 +78,7 @@ void sab_matrix(int dim, double **mat1, double **mat2){
         }
         i++;
     }
-    /*
-    for (i = 0; i < dim; i++){
-        for (j = 0; j < dim; j++)
-            mat1[i][j] -= mat2[i][j];
-    }
-    */
+  
 }
 
 /*calculate id-mat*/
@@ -122,17 +102,6 @@ double **calc_id_mat(int dim_of_mat){
         }
         i = i+1;
     }
-/*
-    for (i = 0; i < dim_of_mat; i++){
-        for (j = 0; j < dim_of_mat; j++)
-            if(i == j){
-                id_mat[i][j] = 1;
-            }
-            else{
-                id_mat[i][j] = 0;
-            }
 
-    }
-    */
     return id_mat;
 }
