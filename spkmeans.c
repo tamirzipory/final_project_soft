@@ -5,14 +5,7 @@
 #include "lnorm.c"
 #include "jacobi.c"
 
-enum Goal{
-  wan_enum = 1,
-  ddg_enum = 2,
-  lnorm_enum = 3,
-  jacobi_enum = 4,
-  spk_enum = 5,
-  kmeans_enum = 6
-};
+
 
 void invalid_input(){
     printf("Invalid Input!\n");
