@@ -28,7 +28,7 @@ double calc_euclidean_norm(double *vector_1, double *vector_2, int dimension);
 double **diag_mat(double **mat, int len);
 double **calc_L_mat(double **diag_mat, double **adj_mat, int len);
 void cal_D12(double **diag_mat, int N);
-double **matrix_allocation(int num_rows, int num_cols);
+double **alloc_for_mat(int num_rows, int num_cols);
 double **calc_mul(int len, double **mat1, double **mat2);
 void sab_matrix(int len, double **mat1, double **mat2);
 double **calc_id_mat(int len);
