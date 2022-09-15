@@ -6,7 +6,7 @@ static PyObject *fit(PyObject *self, PyObject *args)
 {
     PyObject *points_of_py, *cent_py;
     PyObject *curr_points, *d_curr, *res, *vector_curr, *curr_cent;
-    int cluster_count, vectors_count, vectors_count_alloc, ret, num_of_vectors;
+    int cluster_count, vectors_count_alloc, ret, num_of_vectors;
     int len, K, D, i, j;
     double **Datapoints, **Centroids, **goal_result;
     enum Goal goal;
