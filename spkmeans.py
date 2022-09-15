@@ -13,16 +13,16 @@ class Goal(Enum):
     spk = 5
     kmeans_enum = 6
 
-def print_output(mat_get_c, N, goal):
+def print_output(mat_get_c, max_iter, goal):
     ret_out = ""
-    num_rows = N
+    num_rows = max_iter
     if(goal == Goal.jacobi):
         num_rows += 1
 
     for i in range(num_rows):
-        for j in range(N):
+        for j in range(max_iter):
             ret_out += str('%.4f' % (mat_get_c[i][j]))
-            if (j != N-1):
+            if (j != max_iter-1):
                 ret_out += ","
         if (i != num_rows-1):
             ret_out += "\n"
@@ -94,10 +94,10 @@ def kMeans_init(K, data_points_array):
     arr_of_cent_index = []  
     the_op_arr = []
 
-    N = len(data_points_array)
-    D_array = np.array([0.0 for i in range(N+1)])
-    p_arr = np.array([0.0 for i in range(N)])
-    arr_of_index = np.array([i for i in range(N)])
+    max_iter = len(data_points_array)
+    ret_d_array = np.array([0.0 for i in range(max_iter+1)])
+    p_arr = np.array([0.0 for i in range(max_iter)])
+    arr_of_index = np.array([i for i in range(max_iter)])
 
     np.random.seed(0)
 
@@ -106,22 +106,22 @@ def kMeans_init(K, data_points_array):
     arr_of_cent_index.append(data_points_array[index]) 
 
     for i in range(1, K):  
-        find_D(D_array, data_points_array, N, arr_of_cent_index)  
+        calc_d_array(ret_d_array, data_points_array, max_iter, arr_of_cent_index)  
         
-        p_arr = np.array([(D_array[l] / D_array[N]) for l in range(N)])
+        p_arr = np.array([(ret_d_array[l] / ret_d_array[max_iter]) for l in range(max_iter)])
         index = np.random.choice(arr_of_index, p=p_arr)
         the_op_arr.append(index)
         arr_of_cent_index.append(data_points_array[index])
     return the_op_arr, arr_of_cent_index
 
 
-def find_D(D_array, datapoints_array, max_iter, arr_of_cent_index):
-    D_array[max_iter] = 0.0
+def calc_d_array(ret_d_array, datapoints_array, max_iter, arr_of_cent_index):
+    ret_d_array[max_iter] = 0.0
     for l in range(max_iter):
        
-        D_array[l] = np.min([calc(datapoints_array[l], centroid) for centroid in arr_of_cent_index])
+        ret_d_array[l] = np.min([calc(datapoints_array[l], centroid) for centroid in arr_of_cent_index])
         
-        D_array[max_iter] = D_array[max_iter] + D_array[l]
+        ret_d_array[max_iter] = ret_d_array[max_iter] + ret_d_array[l]
 
 
 def calc(x, y):  
@@ -129,7 +129,7 @@ def calc(x, y):
     return np.sum(np.multiply(z, z))
 
 
-def call_fit_ex2(max_iter, K, dimension, data_points, centroids, goal):
+def triget_method2(max_iter, K, dimension, data_points, centroids, goal):
   
     try:
         final_centroids = spkmeans_module.fit(max_iter, K, dimension, data_points, goal.value, centroids)
@@ -206,21 +206,21 @@ def main(argv):
     inputs = argv
     inputs_len = len(inputs)
     K, goal = check_input(argv, inputs_len)
-    data_points_array, N, D = get_goal_input(argv[3])
+    data_points_array, max_iter, d_arr = get_goal_input(argv[3])
 
-    if K > N:
+    if K > max_iter:
         handle_errors_input()
     try:
-        goal_matrix = spkmeans_module.fit(N, K, D, data_points_array.tolist(), goal.value, [])
+        goal_matrix = spkmeans_module.fit(max_iter, K, d_arr, data_points_array.tolist(), goal.value, [])
         if(goal != Goal.spk):
-            print_output(goal_matrix, N, goal)
+            print_output(goal_matrix, max_iter, goal)
         else:
             if(K == 0):
                 K = len(goal_matrix[0])
             goal=Goal.kmeans_enum
             centroids_index, centroids = kMeans_init(K, goal_matrix)
-            D=K
-            display_out_of_spk(call_fit_ex2(N, K, D,goal_matrix, centroids, goal), K, D, centroids_index)
+            d_arr=K
+            display_out_of_spk(triget_method2(max_iter, K, d_arr,goal_matrix, centroids, goal), K, d_arr, centroids_index)
 
     except:
         handle_errors()
