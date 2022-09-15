@@ -1,5 +1,42 @@
 #include "spkmeans.h"
 
+
+
+int checkTheNorm(double **centNew, double **cent_that_used, int dim, int in1){
+    int i;
+    double e;
+    i = 0;
+    while (i < in1){
+        e = euc_norm_calc(centNew[i] , cent_that_used[i], dim);
+        if (e >= 0)
+            return 0;
+        i++;
+    }
+    return 1;
+}
+
+
+int assign_cluster(double **cent, double *data, int dim, int K){
+    int i, j, ret;
+    double sum, min;
+    ret=0; 
+    min = DBL_MAX;
+    i = 0;
+    while (i < K)
+    {
+        sum = 0;
+        for (j = 0; j < dim; j++)
+            sum = pow((data[j] - cent[i][j]), 2) + sum;
+        if (min > sum){
+            ret = i + 1;
+            min = sum;
+        }
+        i++;
+    }
+    return ret;
+}
+
+
 int kMeans(int len, int in1, double **points, double **cent, int dim){
     int i, j, count, clust;
     double **cent_that_used;
@@ -53,7 +90,7 @@ int kMeans(int len, int in1, double **points, double **cent, int dim){
         }
         if (checkTheNorm(cent, cent_that_used, dim, in1))
             break;
-        update_old_centroids(cent, cent_that_used, dim, in1);
+        idkun_the_cents(cent, cent_that_used, dim, in1);
         count++;
     }
 
@@ -61,41 +98,8 @@ int kMeans(int len, int in1, double **points, double **cent, int dim){
     return 0;
 }
 
-int checkTheNorm(double **centNew, double **cent_that_used, int dim, int in1){
-    int i;
-    double e;
-    i = 0;
-    while (i < in1){
-        e = calc_euclidean_norm(centNew[i] , cent_that_used[i], dim);
-        if (e >= 0)
-            return 0;
-        i++;
-    }
-    return 1;
-}
 
-
-int assign_cluster(double **cent, double *data, int dim, int K){
-    int i, j, ret;
-    double sum, min;
-    ret=0; 
-    min = DBL_MAX;
-    i = 0;
-    while (i < K)
-    {
-        sum = 0;
-        for (j = 0; j < dim; j++)
-            sum = pow((data[j] - cent[i][j]), 2) + sum;
-        if (min > sum){
-            ret = i + 1;
-            min = sum;
-        }
-        i++;
-    }
-    return ret;
-}
-
-void update_old_centroids(double **centNew, double **cent_that_used, int dim, int K){
+void idkun_the_cents(double **centNew, double **cent_that_used, int dim, int K){
     int i, j;
     i = 0;
     while (i < K){
