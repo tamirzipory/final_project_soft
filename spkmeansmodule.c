@@ -80,7 +80,7 @@ static PyObject *fit(PyObject *self, PyObject *args)
     }
     else
     {
-        goal_result = target_runner(goal, Datapoints, len, D, &K);
+        goal_result = run_goal(goal, Datapoints, len, D, &K);
         if (goal_result == NULL){
             free_memory(Datapoints, len);
             PyErr_SetString(PyExc_RuntimeError, "An Error Has Occurred");
