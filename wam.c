@@ -1,7 +1,7 @@
 double **adjacency_matrix(double **data_points, int dimension, int N){
     int i, j;
 
-    double **adj_mat = alloc_for_mat(N, N);
+    double **adj_mat = matrix_allocation(N, N);
     if (adj_mat == NULL)
         return NULL;
 
