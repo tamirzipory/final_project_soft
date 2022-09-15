@@ -45,7 +45,7 @@ void cal_D12(double **diag_mat, int len){
 double **calc_mul(int dim_of_the_mats, double **mat1, double **mat2){
     int i, j, z;
     double temp;
-    double **ret = matrix_allocation(dim_of_the_mats, dim_of_the_mats);
+    double **ret = alloc_for_mat(dim_of_the_mats, dim_of_the_mats);
     if (ret == NULL)
         return NULL;
 
@@ -104,7 +104,7 @@ void sab_matrix(int dim, double **mat1, double **mat2){
 /*calculate id-mat*/
 double **calc_id_mat(int dim_of_mat){
     int i, j;
-    double **id_mat = matrix_allocation(dim_of_mat, dim_of_mat);
+    double **id_mat = alloc_for_mat(dim_of_mat, dim_of_mat);
     if (id_mat == NULL)
         return NULL;
 
