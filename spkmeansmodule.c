@@ -21,7 +21,7 @@ static PyObject *fit(PyObject *self, PyObject *args)
     if(goal==6)
         num_of_vectors_allocation=D+1;
 
-    Datapoints = alloc_for_mat(len, num_of_vectors_allocation);
+    Datapoints = alloc_mat(len, num_of_vectors_allocation);
     if (Datapoints == NULL){
         /*I dont know if we only need to return NULL, but my friends that we help them say that it's reccomend*/
         PyErr_SetString(PyExc_RuntimeError, "An Error Has Occurred");
@@ -31,7 +31,7 @@ static PyObject *fit(PyObject *self, PyObject *args)
     
    
     if(goal == 6){
-        Centroids = alloc_for_mat(K, num_of_vectors_allocation);
+        Centroids = alloc_mat(K, num_of_vectors_allocation);
         if (Centroids == NULL){
             free_memory(Datapoints, len);
             PyErr_SetString(PyExc_RuntimeError, "An Error Has Occurred");
@@ -80,7 +80,7 @@ static PyObject *fit(PyObject *self, PyObject *args)
     }
     else
     {
-        goal_result = target_runner(goal, Datapoints, len, D, &K);
+        goal_result = run_goal(goal, Datapoints, len, D, &K);
         if (goal_result == NULL){
             free_memory(Datapoints, len);
             PyErr_SetString(PyExc_RuntimeError, "An Error Has Occurred");
