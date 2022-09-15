@@ -20,7 +20,7 @@ enum Goal{
 
 
 double **adjacency_matrix(double **data_points, int dimension, int len);
-double calc_euclidean_norm(double *vector_1, double *vector_2, int dimension);
+double euc_norm_calc(double *vector_1, double *vector_2, int dimension);
 double **diag_mat(double **mat, int len);
 double **calc_L_mat(double **diag_mat, double **adj_mat, int len);
 void calc_norm_mat(double **diag_mat, int N);
@@ -30,7 +30,7 @@ void sab_matrix(int len, double **mat1, double **mat2);
 double **calc_id_mat(int len);
 double **spk_algo(double **lnorm, int len, int *K);
 double **sort_matrix_values(double **mat, int len);
-void eigengap_heuristic(double *eigenvalues, int len, int *K);
+void func_heruicsic(double *eigenvalues, int len, int *K);
 double **set_T(double **U_mat, int len, int K);
 
 /* (spkmeans.c) (C) main's functions*/
