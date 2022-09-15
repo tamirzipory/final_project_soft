@@ -95,7 +95,7 @@ void free_memory(double **mat, int rows){
     free(mat);
 }
 
-/*Replace the assert*/
+/*Replace the */
 void exit_ms(int type_of_err, int err){
     if (err == 1){
         if (type_of_err != 0)
@@ -133,12 +133,10 @@ double **target_runner(enum Goal target, double **data, int n1, int n2, int *n3)
         return calc_jacob(n1, data);
     
     ret = adjacency_matrix(data, n2, n1);
-    if(ret == NULL || target == 1){
-       if (ret == NULL)
-           return NULL;
-       if(target == 1)
-           return ret;
-    }
+    if (ret == NULL)
+        return NULL;
+    if(target == 1)
+        return ret;
     mat_wam = ret;
     ret = diag_mat(mat_wam, n1);
     if (target == 2 ||ret == NULL){
@@ -165,7 +163,7 @@ int main(int argc, char *argv[]){
     FILE *ifp;
     enum Goal target = 0;
     n3 = 0;
-    exit_ms(0, argc != 3);
+    msg_and_exit(0, argc != 3);
 
     if (strcmp("wam", argv[1]) == 0)
         target = wam_g;
@@ -175,22 +173,22 @@ int main(int argc, char *argv[]){
         target = lnorm_g;
     else if (strcmp("jacobi", argv[1]) == 0)
         target = jacobi_g;
-    exit_ms(0, 0 == target);
+    msg_and_exit(0, 0 == target);
 
     ifp = fopen(argv[2], "r");
-    exit_ms(1, ifp == NULL);
-    n1 = get_second_para(ifp, 1);
-    n2 = get_second_para(ifp, 2);
+    msg_and_exit(1, ifp == NULL);
+    n1 = get_n_d_parameters(ifp, 1);
+    n2 = get_n_d_parameters(ifp, 2);
     data = alloc_mat(n1, n2);
-    exit_ms(1, data == NULL);
-    insert_input(ifp, data, n1, n2);
-    ret = target_runner(target, data, n1, n2, &n3);
+    msg_and_exit(1, data == NULL);
+    set_input(ifp, data, n1, n2);
+    ret = run_goal(target, data, n1, n2, &n3);
     if (NULL == ret){ 
         free_memory(data, n1);
-        exit_ms(1, 1);
+        msg_and_exit(1, 1);
     }
 
-    res_allPrint(ret, n1, n1, target);
+    print_result(ret, n1, n1, target);
     printf("\n");
     free_memory(data, n1);
     if (jacobi_g != target)
