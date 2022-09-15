@@ -63,7 +63,22 @@ static PyObject *fit(PyObject *self, PyObject *args)
         }
         i++;
     }
-    if (goal == 6){
+    if(goal != 6){
+        goal_result = run_goal(goal, Datapoints, len, D, &K);
+        if (goal_result == NULL){
+            free_memory(Datapoints, len);
+            PyErr_SetString(PyExc_RuntimeError, "An Error Has Occurred");
+            return NULL;
+        }
+        if(goal == 4){
+            cluster_count = len;
+            cluster_count = cluster_count +1;
+        }
+        else cluster_count = len;
+        num_of_vectors=len; 
+        if(goal==5)
+            num_of_vectors=K; 
+    } else {
         ret = kMeans(len, K, Datapoints, Centroids, D);
         if (ret == -1){
             free_memory(Datapoints,len);
@@ -75,38 +90,22 @@ static PyObject *fit(PyObject *self, PyObject *args)
         cluster_count = K; 
         num_of_vectors=D; 
     }
-    else
-    {
-        goal_result = run_goal(goal, Datapoints, len, D, &K);
-        if (goal_result == NULL){
-            free_memory(Datapoints, len);
-            PyErr_SetString(PyExc_RuntimeError, "An Error Has Occurred");
-            return NULL;
-        }
-
-        if(goal == 4)
-            cluster_count = len+1;
-        else
-            cluster_count = len;
-
-        num_of_vectors=len; 
-
-        if(goal==5)
-            num_of_vectors=K; 
-    }
-
-    /* Converts result_matrix to an array list (python)*/
     res = PyList_New(cluster_count);
-    for (i = 0; i < cluster_count; ++i){
+    i = 0;
+    while (i < cluster_count)
+    {
         vector_curr = PyList_New(num_of_vectors);
-        for (j = 0; j < num_of_vectors; j++)
+        j = 0;
+        while (j < num_of_vectors)
+        {
             PyList_SetItem(vector_curr, j, Py_BuildValue("d", goal_result[i][j]));
+            j++;
+        }
         PyList_SetItem(res, i, Py_BuildValue("O", vector_curr));
+        i++;
     }
-
     free_memory(Datapoints, len);
     free_memory(goal_result, cluster_count);
-
     return res;
 }
 
