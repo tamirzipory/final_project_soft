@@ -13,20 +13,20 @@ class Goal(Enum):
     spk = 5
     kmeans_enum = 6
 
-def print_output(mat_from_fit, N, goal):
-    output_res = ""
+def print_output(mat_get_c, N, goal):
+    ret_out = ""
     num_rows = N
     if(goal == Goal.jacobi):
         num_rows += 1
 
     for i in range(num_rows):
         for j in range(N):
-            output_res += str('%.4f' % (mat_from_fit[i][j]))
+            ret_out += str('%.4f' % (mat_get_c[i][j]))
             if (j != N-1):
-                output_res += ","
+                ret_out += ","
         if (i != num_rows-1):
-            output_res += "\n"
-    print(output_res)
+            ret_out += "\n"
+    print(ret_out)
 
 def handle_errors():
     print("An Error Has Occurred")
@@ -52,73 +52,74 @@ def get_goal_input(filename):
         handle_errors()
 
 
-def print_output_spk(mat_from_fit, K, D, centroids_index_list):
-    output_res = ""
+def display_out_of_spk(mat_get_c, K, d_mat, centroids_index_list):
+    ret_out = ""
     for i in range(K):
-        output_res += str(int(centroids_index_list[i]))
+        ret_out += str(int(centroids_index_list[i]))
         if (i != K-1):
-            output_res += ","
-    output_res += "\n"
+            ret_out += ","
+    ret_out += "\n"
 
     
     for i in range(K):
-        for j in range(D):
-            output_res += str('%.4f' % (mat_from_fit[i][j]))
-            if (j != D-1):
-                output_res += ","
+        for j in range(d_mat):
+            ret_out += str('%.4f' % (mat_get_c[i][j]))
+            if (j != d_mat-1):
+                ret_out += ","
         if ( i != K-1):
-            output_res += "\n"
-    print(output_res)
+            ret_out += "\n"
+    print(ret_out)
 
 
-def check_input(given_input, argLen):
-    if (argLen != 4):
+def check_input(argv, argc):
+    len_of_input = argc
+    if (len_of_input != 4):
         handle_errors_input()
    
-    is_valid = given_input[1].isnumeric()
-    if is_valid:
-        is_valid = int(given_input[1]) >= 0 
+    boolean_validation = argv[1].isnumeric()
+    if boolean_validation:
+        boolean_validation = int(argv[1]) >= 0 
     
-    if is_valid:
-        is_valid = given_input[2] in [curr_goal.name for curr_goal in Goal]
+    if boolean_validation:
+        boolean_validation = argv[2] in [curr_goal.name for curr_goal in Goal]
 
-    if not is_valid:
+    if not boolean_validation:
         handle_errors_input()
 
-    return ((int)(given_input[1]), Goal[given_input[2]])
+    return ((int)(argv[1]), Goal[argv[2]])
 
 
 def kMeans_init(K, data_points_array):
 
-    Centroids_array = []  
-    Centroids_index_array = []
+    arr_of_cent_index = []  
+    the_op_arr = []
 
     N = len(data_points_array)
     D_array = np.array([0.0 for i in range(N+1)])
-    Pr_array = np.array([0.0 for i in range(N)])
-    Index_array = np.array([i for i in range(N)])
+    p_arr = np.array([0.0 for i in range(N)])
+    arr_of_index = np.array([i for i in range(N)])
 
     np.random.seed(0)
 
-    index=np.random.choice(Index_array)
-    Centroids_index_array.append(index)
-    Centroids_array.append(data_points_array[index]) 
+    index=np.random.choice(arr_of_index)
+    the_op_arr.append(index)
+    arr_of_cent_index.append(data_points_array[index]) 
 
     for i in range(1, K):  
-        find_D(D_array, data_points_array, N, Centroids_array)  
+        find_D(D_array, data_points_array, N, arr_of_cent_index)  
         
-        Pr_array = np.array([(D_array[l] / D_array[N]) for l in range(N)])
-        index = np.random.choice(Index_array, p=Pr_array)
-        Centroids_index_array.append(index)
-        Centroids_array.append(data_points_array[index])
-    return Centroids_index_array,Centroids_array
+        p_arr = np.array([(D_array[l] / D_array[N]) for l in range(N)])
+        index = np.random.choice(arr_of_index, p=p_arr)
+        the_op_arr.append(index)
+        arr_of_cent_index.append(data_points_array[index])
+    return the_op_arr,arr_of_cent_index
 
 
-def find_D(D_array, datapoints_array, N, Centroids_array):
+def find_D(D_array, datapoints_array, N, arr_of_cent_index):
     D_array[N] = 0.0
     for l in range(N):
        
-        D_array[l] = np.min([calc(datapoints_array[l], centroid) for centroid in Centroids_array])
+        D_array[l] = np.min([calc(datapoints_array[l], centroid) for centroid in arr_of_cent_index])
         
         D_array[N] = D_array[N] + D_array[l]
 
@@ -157,7 +158,7 @@ def main(argv):
             goal=Goal.kmeans_enum
             centroids_index, centroids = kMeans_init(K, goal_matrix)
             D=K
-            print_output_spk(call_fit_ex2(N, K, D,goal_matrix, centroids, goal), K, D, centroids_index)
+            display_out_of_spk(call_fit_ex2(N, K, D,goal_matrix, centroids, goal), K, D, centroids_index)
 
     except:
         handle_errors()
