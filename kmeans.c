@@ -53,7 +53,7 @@ int kMeans(int len, int in1, double **points, double **cent, int dim){
         }
         if (checkTheNorm(cent, cent_that_used, dim, in1))
             break;
-        update_old_centroids(cent, cent_that_used, dim, in1);
+        idcon_cent(cent, cent_that_used, dim, in1);
         count++;
     }
 
@@ -95,7 +95,7 @@ int assign_cluster(double **cent, double *data, int dim, int K){
     return ret;
 }
 
-void update_old_centroids(double **centNew, double **cent_that_used, int dim, int K){
+void idcon_cent(double **centNew, double **cent_that_used, int dim, int K){
     int i, j;
     i = 0;
     while (i < K){
