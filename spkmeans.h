@@ -28,10 +28,10 @@ double **alloc_mat(int num_rows, int num_cols);
 double **calc_mul(int len, double **mat1, double **mat2);
 void sab_matrix(int len, double **mat1, double **mat2);
 double **calc_id_mat(int len);
-double **spk_algo(double **lnorm, int len, int *K);
+double **calc_spk_method(double **lnorm, int len, int *K);
 double **sort_matrix_values(double **mat, int len);
 void func_heruicsic(double *eigenvalues, int len, int *K);
-double **set_T(double **U_mat, int len, int K);
+double **calc_the_T(double **U_mat, int len, int K);
 
 /* (spkmeans.c) (C) main's functions*/
 double **run_goal(enum Goal goal, double **data_input, int len, int D, int *K);
