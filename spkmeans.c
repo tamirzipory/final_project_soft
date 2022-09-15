@@ -166,13 +166,13 @@ int main(int argc, char *argv[]){
     msg_and_exit(0, argc != 3);
 
     if (strcmp("wam", argv[1]) == 0)
-        target = wam_g;
+        target = wan_enum;
     else if (strcmp("ddg", argv[1]) == 0)
-        target = ddg_g;
+        target = ddg_enum;
     else if (strcmp("lnorm", argv[1]) == 0)
-        target = lnorm_g;
+        target = lnorm_enum;
     else if (strcmp("jacobi", argv[1]) == 0)
-        target = jacobi_g;
+        target = jacobi_enum;
     msg_and_exit(0, 0 == target);
 
     ifp = fopen(argv[2], "r");
@@ -191,7 +191,7 @@ int main(int argc, char *argv[]){
     print_result(ret, n1, n1, target);
     printf("\n");
     free_memory(data, n1);
-    if (jacobi_g != target)
+    if (jacobi_enum != target)
         free_memory(ret, n1);
     else free_memory(ret, n1 + 1);
     fclose(ifp);
