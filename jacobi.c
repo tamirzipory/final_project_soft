@@ -92,7 +92,7 @@ void calc_first_mat(int len_mat, double **the_mat, double d1, double d2, int i, 
 }
 
 
-double calc_off_diag(int len_mat, double **A){
+double calc_off_diag(int len_mat, double **mat_of_the_calc_diag){
     int i, j;
     double squar = 0;
     i = 0;
@@ -100,7 +100,7 @@ double calc_off_diag(int len_mat, double **A){
         j = 0;
         while(j < len_mat){
             if(i != j)
-                squar = (A[i][j] * A[i][j]) + squar;
+                squar = (mat_of_the_calc_diag[i][j] * mat_of_the_calc_diag[i][j]) + squar;
             j++;
         }
         i++;
@@ -108,13 +108,13 @@ double calc_off_diag(int len_mat, double **A){
     return squar;
 }
 
-void get_mat_transe(double **mat, int N){
+void get_mat_transe(double **mat, int max_iter){
     int i, j;
     double t;
     i = 0;
-    while(i < N){
+    while(i < max_iter){
         j = i +1;
-        while(j < N){
+        while(j < max_iter){
             t = mat[i][j];
             mat[i][j] = mat[j][i];
             mat[j][i] = t;
