@@ -35,7 +35,7 @@ double **spk_algo(double **lnorm, int N, int *K){ /* Called after steps 1-2 have
 double **sort_matrix_values(double **mat, int N){
     int i, j, max_index;
     double max_value;
-    double **sort_mat = alloc_for_mat(N + 1, N);
+    double **sort_mat = matrix_allocation(N + 1, N);
     if (sort_mat == NULL){
         free_memory(mat, N + 1);
         return NULL;
@@ -67,7 +67,7 @@ double **set_T(double **U, int N, int K){
     int i, j, q;
     double sum = 0;
 
-    double **T = alloc_for_mat(N, K);
+    double **T = matrix_allocation(N, K);
     if (T == NULL)
         return NULL;
 
