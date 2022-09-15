@@ -1,26 +1,28 @@
-double **adjacency_matrix(double **mat_of_vectors, int dimension, int len){
+double **adjacency_matrix(double **data_points, int dimension, int N){
     int i, j;
 
-    double **adj_mat = alloc_for_mat(len, len);
+    double **adj_mat = matrix_allocation(N, N);
     if (adj_mat == NULL)
         return NULL;
 
-    for (i = 0; i < len; i++){
-        for (j = i; j < len; j++){
-            adj_mat[i][j] = (i == j) ? 0 : (exp((euc_norm_calc(mat_of_vectors[i], mat_of_vectors[j], dimension)) / (-2)));
+    for (i = 0; i < N; i++){
+        for (j = i; j < N; j++){
+            adj_mat[i][j] = (i == j) ? 0 : (exp((calc_euclidean_norm(data_points[i], data_points[j], dimension)) / (-2)));
             adj_mat[j][i] = adj_mat[i][j];
         }
     }
     return adj_mat;
 }
 
-double euc_norm_calc(double *arr1, double *arr2, int dimension){
+/* Receives 2 vectors- x,y and thier dimension
+ * Returns their distance: ||x-y||2*/
+double calc_euclidean_norm(double *x, double *y, int dimension){
     int j;
-    double sum, ret;
+    double sum;
     sum = 0;
     for (j = 0; j < dimension; j++)
-        sum = sum+((arr1[j]-arr2[j]) * (arr1[j]-arr2[j]));    
+        sum += pow(x[j] - y[j], 2);
+    
     sum = sqrt(sum);
-    ret = sum;
-    return ret;
+    return sum;
 }
