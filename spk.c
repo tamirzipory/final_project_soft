@@ -1,37 +1,22 @@
-double **spk_algo(double **lnorm, int N, int *K){ /* Called after steps 1-2 have been made*/
-    double **jacobi_output, **eigenvectors, **T, **sort_transpose;
-
-    jacobi_output = (double **)calc_jacob(N, lnorm);
-    if (jacobi_output == NULL)
+double **calc_spk_method(double **ln, int len, int *K){ 
+    double **output_j, **vectors_e, **ret, **sort_t;
+    output_j = (double **)calc_jacob(len, ln);
+    if (output_j == NULL)
         return NULL;
-
-    /* Transpose on eigenvectors- to make the sort easier*/
-    eigenvectors = jacobi_output + 1; /* Jacobi without eigenvalues*/
-    get_mat_transe(eigenvectors, N);
-
-    /* in sort_transpose jacobi_output is being freed, there is no use in it again!*/
-    sort_transpose = sort_matrix_values(jacobi_output, N);
-    if (sort_transpose == NULL)
+    vectors_e = output_j + 1; 
+    get_mat_transe(vectors_e, len);
+    sort_t = sort_matrix_values(output_j, len);
+    if (sort_t == NULL)
         return NULL;
-
-    /* The Eigengap Heuristic- was told not to handle a case where k=1*/
     if (*K == 0)
-        func_heruicsic(sort_transpose[0], N, K);
-
-    /* Transpose on eigenvectors- get them to the right shape (vector in columns)*/
-    eigenvectors = sort_transpose + 1; /* sort_transpose without eigenvalues*/
-    get_mat_transe(eigenvectors, N);
-
-    /* eigenvectors points to the start of eigenvectors, we will use only the first K vectors (first K columns) as U
-     * and update eigenvectors (by renormalizing each of U’s rows) to be T */
-    T = set_T(eigenvectors, N, *K);
-    free_memory(sort_transpose, N + 1);
-
-    return T;
+        func_heruicsic(sort_t[0], len, K);
+    vectors_e = sort_t + 1; 
+    get_mat_transe(vectors_e, len);
+    ret = calc_the_T(vectors_e, len, *K);
+    free_memory(sort_t, len + 1);
+    return ret;
 }
 
-/* Receives a jacobi's matrix
- * Sort first row and rows 1 to N according to the eigenvalues in first row */
 double **sort_matrix_values(double **mat, int N){
     int i, j, max_index;
     double max_value;
@@ -44,26 +29,21 @@ double **sort_matrix_values(double **mat, int N){
         max_index = -1;
         max_value = -1;
         for (j = 0; j < N; j++){
-            /* Found new max*/
             if (max_value < mat[0][j]){
                 max_index = j;
                 max_value = mat[0][j];
             }
         }
-        /* Place the i'th eigenvalue in the i'th cell and it's correspoond eigenvectors in line number i+1 */
         sort_mat[0][i] = max_value;
         sort_mat[i + 1] = mat[max_index + 1];
         mat[0][max_index] = -1;
     }
-    /* free (mat=jacobi_output) */
     free(mat[0]);
     free(mat);
     return sort_mat;
 }
 
-/* Receives U (created by largest eigenvectors of jacobi), N- number of rows, K- number of columns
- * Returns T- by renormalizing each of U’s rows to have unit length */
-double **set_T(double **U, int N, int K){
+double **calc_the_T(double **U, int N, int K){
     int i, j, q;
     double sum = 0;
 
@@ -73,7 +53,6 @@ double **set_T(double **U, int N, int K){
 
     for (i = 0; i < N; i++){
         for (j = 0; j < K; j++){
-            /* Calculate sum once for each new row!*/
             if (j == 0){
                 sum = 0;
                 for (q = 0; q < K; q++)
