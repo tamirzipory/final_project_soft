@@ -20,7 +20,7 @@ double **calc_spk_method(double **ln, int len, int *K){
 double **mat_sorting(double **mat, int len){
     int i, j, max_index;
     double max_value;
-    double **ret = alloc_for_mat(len + 1, len);
+    double **ret = alloc_mat(len + 1, len);
     if (ret == NULL){
         free_memory(mat, len + 1);
         return NULL;
@@ -51,7 +51,7 @@ double **mat_sorting(double **mat, int len){
 double **calc_the_T(double **u_mat, int len, int K){
     int i, j, m;
     double sum = 0;
-    double **ret = alloc_for_mat(len, K);
+    double **ret = alloc_mat(len, K);
     if (ret == NULL)
         return NULL;
     i = 0;
@@ -75,17 +75,15 @@ double **calc_the_T(double **u_mat, int len, int K){
 }
 
 
-void func_heruicsic(double *values, int len, int *K){ 
+void func_heruicsic(double *eigenvalues, int len, int *K){ 
     int i;
     double curr_max_gap = DBL_MIN;
+
     int max_iter = (int)(len / 2);
-    i = 0;
-    while (i <= max_iter)
-    {
-         if (fabs(values[i - 1] - values[i]) > curr_max_gap){
-            curr_max_gap = fabs(values[i - 1] - values[i]);
+    for (i = 1; i <= max_iter; i++){
+        if (curr_max_gap < fabs(eigenvalues[i - 1] - eigenvalues[i])){
+            curr_max_gap = fabs(eigenvalues[i - 1] - eigenvalues[i]);
             *K = i;
         }
-        i++;
     }
 }
