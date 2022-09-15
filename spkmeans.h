@@ -19,19 +19,19 @@ enum Goal{
 };
 
 
-double **adjacency_matrix(double **data_points, int dimension, int len);
-double euc_norm_calc(double *vector_1, double *vector_2, int dimension);
-double **diag_mat(double **mat, int len);
-double **calc_L_mat(double **diag_mat, double **adj_mat, int len);
-void calc_norm_mat(double **diag_mat, int N);
-double **alloc_mat(int num_rows, int num_cols);
-double **calc_mul(int len, double **mat1, double **mat2);
-void sab_matrix(int len, double **mat1, double **mat2);
-double **calc_id_mat(int len);
-double **calc_spk_method(double **lnorm, int len, int *K);
-double **mat_sorting(double **mat, int len);
-void func_heruicsic(double *eigenvalues, int len, int *K);
-double **calc_the_T(double **U_mat, int len, int K);
+double **adjacency_matrix(double **, int , int );
+double euc_norm_calc(double *, double *, int );
+double **diag_mat(double **, int );
+double **calc_L_mat(double **, double **, int );
+void calc_norm_mat(double **, int );
+double **alloc_mat(int , int );
+double **calc_mul(int , double **, double **);
+void sab_matrix(int , double **, double **);
+double **calc_id_mat(int );
+double **calc_spk_method(double **, int , int *);
+double **mat_sorting(double **, int );
+void func_heruicsic(double *, int , int *);
+double **calc_the_T(double **, int , int );
 
 /* (spkmeans.c) (C) main's functions*/
 double **run_goal(enum Goal goal, double **data_input, int len, int D, int *K);
