@@ -96,7 +96,7 @@ void free_memory(double **mat, int rows){
 }
 
 /*Replace the */
-void exit_ms(int type_of_err, int err){
+void msg_and_exit(int type_of_err, int err){
     if (err == 1){
         if (type_of_err != 0)
             err_print();
@@ -163,7 +163,7 @@ int main(int argc, char *argv[]){
     FILE *ifp;
     enum Goal target = 0;
     n3 = 0;
-    exit_ms(0, argc != 3);
+    msg_and_exit(0, argc != 3);
 
     if (strcmp("wam", argv[1]) == 0)
         target = wam_g;
@@ -173,19 +173,19 @@ int main(int argc, char *argv[]){
         target = lnorm_g;
     else if (strcmp("jacobi", argv[1]) == 0)
         target = jacobi_g;
-    exit_ms(0, 0 == target);
+    msg_and_exit(0, 0 == target);
 
     ifp = fopen(argv[2], "r");
-    exit_ms(1, ifp == NULL);
+    msg_and_exit(1, ifp == NULL);
     n1 = parmars_getter(ifp, 1);
     n2 = parmars_getter(ifp, 2);
     data = alloc_mat(n1, n2);
-    exit_ms(1, data == NULL);
+    msg_and_exit(1, data == NULL);
     set_input(ifp, data, n1, n2);
     ret = run_goal(target, data, n1, n2, &n3);
     if (NULL == ret){ 
         free_memory(data, n1);
-        exit_ms(1, 1);
+        msg_and_exit(1, 1);
     }
 
     print_result(ret, n1, n1, target);
