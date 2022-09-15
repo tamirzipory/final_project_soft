@@ -110,7 +110,7 @@ def start_kmeans(K, data_points_array):
     for i in range(1, K):  
         find_D(arr_of_distance, data_points_array, len_of, Centroids_array)  
         
-        arr_of_vectors = np.array([(arr_of_distance[l] / arr_of_distance[N]) for l in range(N)])
+        arr_of_vectors = np.array([(arr_of_distance[l] / arr_of_distance[len_of]) for l in range(len_of)])
         index = np.random.choice(arr_of_index, p=arr_of_vectors)
         Centroids_index_array.append(index)
         Centroids_array.append(data_points_array[index])
@@ -132,10 +132,10 @@ def calc(arr1, arr2):
     return ret
 
 
-def call_fit_ex2(N, K, dimension, data_points, centroids, goal):
+def call_fit_ex2(len_of, K, dimension, data_points, centroids, goal):
   
     try:
-        final_centroids = spkmeans_module.fit(N, K, dimension, data_points, goal.value, centroids)
+        final_centroids = spkmeans_module.fit(len_of, K, dimension, data_points, goal.value, centroids)
         return final_centroids
     except:
         handle_errors()
