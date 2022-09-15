@@ -7,7 +7,7 @@ int checkTheNorm(double **centNew, double **cent_that_used, int dim, int in1){
     double e;
     i = 0;
     while (i < in1){
-        e = calc_euclidean_norm(centNew[i] , cent_that_used[i], dim);
+        e = euc_norm_calc(centNew[i] , cent_that_used[i], dim);
         if (e >= 0)
             return 0;
         i++;
