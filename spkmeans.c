@@ -31,7 +31,7 @@ double **alloc_mat(int rows, int cols){
     return mat;
 }
 /*return the dimentins according the purpose (dim or num of vectors*/
-int parmars_getter(FILE *ifp, int situattion){
+int get_n_d_parameters(FILE *ifp, int situattion){
     char ch;
     int count = 0;
     ch = 0;
@@ -177,8 +177,8 @@ int main(int argc, char *argv[]){
 
     ifp = fopen(argv[2], "r");
     msg_and_exit(1, ifp == NULL);
-    n1 = parmars_getter(ifp, 1);
-    n2 = parmars_getter(ifp, 2);
+    n1 = get_n_d_parameters(ifp, 1);
+    n2 = get_n_d_parameters(ifp, 2);
     data = alloc_mat(n1, n2);
     msg_and_exit(1, data == NULL);
     set_input(ifp, data, n1, n2);
