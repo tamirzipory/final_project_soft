@@ -75,15 +75,17 @@ double **calc_the_T(double **u_mat, int len, int K){
 }
 
 
-void func_heruicsic(double *eigenvalues, int len, int *K){ 
+void func_heruicsic(double *values, int len, int *K){ 
     int i;
     double curr_max_gap = DBL_MIN;
-
     int max_iter = (int)(len / 2);
-    for (i = 1; i <= max_iter; i++){
-        if (curr_max_gap < fabs(eigenvalues[i - 1] - eigenvalues[i])){
-            curr_max_gap = fabs(eigenvalues[i - 1] - eigenvalues[i]);
+    i = 0;
+    while (i <= max_iter)
+    {
+         if (fabs(values[i - 1] - values[i]) > curr_max_gap){
+            curr_max_gap = fabs(values[i - 1] - values[i]);
             *K = i;
         }
+        i++;
     }
 }
