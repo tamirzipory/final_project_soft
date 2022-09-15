@@ -14,12 +14,12 @@
 
 
 enum Goal{
-  wam_g = 1,
-  ddg_g = 2,
-  lnorm_g = 3,
-  jacobi_g = 4,
-  spk_g = 5,
-  spk_g2 = 6
+  wan_enum = 1,
+  ddg_enum = 2,
+  lnorm_enum = 3,
+  jacobi_enum = 4,
+  spk_enum = 5,
+  kmeans_enum = 6
 };
 
 
@@ -37,7 +37,7 @@ double **sort_matrix_values(double **mat, int len);
 void eigengap_heuristic(double *eigenvalues, int len, int *K);
 double **set_T(double **U_mat, int len, int K);
 
-/* (spkmeans.c) (C) main's functions*/
+
 double **triger_project(enum Goal goal, double **data_input, int len, int D, int *K);
 void print_result(double **mat, int num_rows, int num_cols, enum Goal goal);
 void msg_and_exit(int error_type, int is_error);
